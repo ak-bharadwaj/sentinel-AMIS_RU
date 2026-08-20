@@ -1,0 +1,334 @@
+{
+  "primary_dataset_n10": {
+    "Mumbai 2005 Flood": {
+      "sentinel_survivor": {
+        "mean": 27.2565,
+        "sample_sd": 3.4244,
+        "ci_95_student_t": [
+          24.8068,
+          29.7061
+        ],
+        "raw_10_seeds": [
+          26.7043,
+          32.878,
+          23.959,
+          28.4251,
+          24.3137,
+          26.6978,
+          32.8852,
+          23.9799,
+          28.4097,
+          24.312
+        ]
+      },
+      "baseline_a_survivor": {
+        "mean": 28.3782,
+        "sample_sd": 3.955,
+        "ci_95_student_t": [
+          25.549,
+          31.2075
+        ],
+        "raw_10_seeds": [
+          22.6192,
+          32.1555,
+          27.059,
+          32.8386,
+          27.2166,
+          22.6127,
+          32.1627,
+          27.0799,
+          32.8232,
+          27.2149
+        ]
+      },
+      "baseline_b_survivor": {
+        "mean": 23.3376,
+        "sample_sd": 6.6402,
+        "ci_95_student_t": [
+          18.5875,
+          28.0877
+        ],
+        "raw_10_seeds": [
+          22.6849,
+          28.2937,
+          22.6455,
+          28.5827,
+          22.6717,
+          6.2927,
+          28.3009,
+          22.6664,
+          28.5673,
+          22.67
+        ]
+      },
+      "paired_comparisons": {
+        "sentinel_vs_baseline_a": {
+          "abs_diff_pp": -1.1218,
+          "pct_improvement": -3.9529,
+          "wilcoxon_p_value_two_sided": 0.3535,
+          "cohens_d": "d = -0.30"
+        },
+        "sentinel_vs_baseline_b": {
+          "abs_diff_pp": 3.9189,
+          "pct_improvement": 16.7922,
+          "wilcoxon_p_value_two_sided": 0.0078,
+          "cohens_d": "d = 0.74"
+        }
+      }
+    },
+    "Bhuj 2001 Earthquake": {
+      "sentinel_survivor": {
+        "mean": 35.2369,
+        "sample_sd": 1.4713,
+        "ci_95_student_t": [
+          34.1844,
+          36.2894
+        ],
+        "raw_10_seeds": [
+          35.9664,
+          35.0411,
+          36.8574,
+          35.6066,
+          32.7108,
+          35.9599,
+          35.0483,
+          36.8783,
+          35.5912,
+          32.7091
+        ]
+      },
+      "baseline_a_survivor": {
+        "mean": 35.2437,
+        "sample_sd": 1.7145,
+        "ci_95_student_t": [
+          34.0173,
+          36.4702
+        ],
+        "raw_10_seeds": [
+          35.7779,
+          35.7094,
+          37.3029,
+          32.3509,
+          35.0754,
+          35.7714,
+          35.7166,
+          37.3238,
+          32.3355,
+          35.0737
+        ]
+      },
+      "baseline_b_survivor": {
+        "mean": 31.3713,
+        "sample_sd": 0.287,
+        "ci_95_student_t": [
+          31.166,
+          31.5766
+        ],
+        "raw_10_seeds": [
+          31.1515,
+          31.1515,
+          31.6998,
+          31.1515,
+          31.6998,
+          31.145,
+          31.1587,
+          31.7207,
+          31.1361,
+          31.6981
+        ]
+      },
+      "paired_comparisons": {
+        "sentinel_vs_baseline_a": {
+          "abs_diff_pp": -0.0068,
+          "pct_improvement": -0.0194,
+          "wilcoxon_p_value_two_sided": 0.6094,
+          "cohens_d": "d = -0.00"
+        },
+        "sentinel_vs_baseline_b": {
+          "abs_diff_pp": 3.8656,
+          "pct_improvement": 12.3222,
+          "wilcoxon_p_value_two_sided": 0.002,
+          "cohens_d": "d = 3.65"
+        }
+      }
+    },
+    "Nisarga 2020 Cyclone": {
+      "sentinel_survivor": {
+        "mean": 46.9768,
+        "sample_sd": 1.2153,
+        "ci_95_student_t": [
+          46.1074,
+          47.8462
+        ],
+        "raw_10_seeds": [
+          45.7009,
+          46.1084,
+          48.8794,
+          47.6365,
+          46.5566,
+          45.6944,
+          46.1156,
+          48.9003,
+          47.6211,
+          46.5549
+        ]
+      },
+      "baseline_a_survivor": {
+        "mean": 44.1651,
+        "sample_sd": 3.7169,
+        "ci_95_student_t": [
+          41.5061,
+          46.824
+        ],
+        "raw_10_seeds": [
+          49.4091,
+          46.5974,
+          40.709,
+          44.0505,
+          40.057,
+          49.4026,
+          46.6046,
+          40.7299,
+          44.0351,
+          40.0553
+        ]
+      },
+      "baseline_b_survivor": {
+        "mean": 38.6354,
+        "sample_sd": 0.5391,
+        "ci_95_student_t": [
+          38.2497,
+          39.021
+        ],
+        "raw_10_seeds": [
+          37.8362,
+          38.6716,
+          38.5493,
+          38.6716,
+          39.4458,
+          37.8297,
+          38.6788,
+          38.5702,
+          38.6562,
+          39.4441
+        ]
+      },
+      "paired_comparisons": {
+        "sentinel_vs_baseline_a": {
+          "abs_diff_pp": 2.8118,
+          "pct_improvement": 6.3665,
+          "wilcoxon_p_value_two_sided": 0.1895,
+          "cohens_d": "d = 1.02"
+        },
+        "sentinel_vs_baseline_b": {
+          "abs_diff_pp": 8.3415,
+          "pct_improvement": 21.5902,
+          "wilcoxon_p_value_two_sided": 0.002,
+          "cohens_d": "d = 8.87"
+        }
+      }
+    },
+    "Aarey 2018 Wildfire": {
+      "sentinel_survivor": {
+        "mean": 56.097,
+        "sample_sd": 4.4205,
+        "ci_95_student_t": [
+          52.9348,
+          59.2593
+        ],
+        "raw_10_seeds": [
+          56.512,
+          52.3016,
+          63.4731,
+          51.7777,
+          56.4184,
+          56.5055,
+          52.3088,
+          63.494,
+          51.7623,
+          56.4167
+        ]
+      },
+      "baseline_a_survivor": {
+        "mean": 55.1202,
+        "sample_sd": 3.1065,
+        "ci_95_student_t": [
+          52.898,
+          57.3425
+        ],
+        "raw_10_seeds": [
+          58.4768,
+          51.5906,
+          58.3645,
+          55.0711,
+          52.0958,
+          58.4703,
+          51.5978,
+          58.3854,
+          55.0557,
+          52.0941
+        ]
+      },
+      "baseline_b_survivor": {
+        "mean": 49.5626,
+        "sample_sd": 7.7909,
+        "ci_95_student_t": [
+          43.9893,
+          55.1358
+        ],
+        "raw_10_seeds": [
+          45.8645,
+          45.8645,
+          45.8645,
+          64.3525,
+          45.8645,
+          45.858,
+          45.8717,
+          45.8854,
+          64.3371,
+          45.8628
+        ]
+      },
+      "paired_comparisons": {
+        "sentinel_vs_baseline_a": {
+          "abs_diff_pp": 0.9768,
+          "pct_improvement": 1.7721,
+          "wilcoxon_p_value_two_sided": 0.3594,
+          "cohens_d": "d = 0.26"
+        },
+        "sentinel_vs_baseline_b": {
+          "abs_diff_pp": 6.5345,
+          "pct_improvement": 13.1843,
+          "wilcoxon_p_value_two_sided": 0.2246,
+          "cohens_d": "d = 1.03"
+        }
+      }
+    }
+  },
+  "secondary_sensitivity_n9": {
+    "mumbai_baseline_b_n9_survivor": {
+      "mean": 25.2315,
+      "sample_sd": 3.0418,
+      "ci_95_student_t": [
+        22.8933,
+        27.5696
+      ],
+      "raw_9_seeds": [
+        22.6849,
+        28.2937,
+        22.6455,
+        28.5827,
+        22.6717,
+        28.3009,
+        22.6664,
+        28.5673,
+        22.67
+      ]
+    },
+    "mumbai_sentinel_vs_baseline_b_n9": {
+      "abs_diff_pp": 2.0871,
+      "wilcoxon_p_value_two_sided": 0.0156,
+      "cohens_d": "d = 0.62"
+    }
+  }
+}

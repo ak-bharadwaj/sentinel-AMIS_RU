@@ -10,7 +10,7 @@ class Settings:
     
     # Simulation Parameters
     TIMESTEP_DURATION: int = 60  # seconds (1 minute)
-    SURVIVAL_DECAY_RATE: float = 0.005  # gamma, decay rate of survivors in danger zones per minute
+    SURVIVAL_DECAY_RATE: float = 0.0005  # gamma, decay rate of survivors in danger zones per minute
     OBSERVATION_RELIABILITY: float = 0.9  # eta, reliability of scout reports
     KNOWLEDGE_DECAY_RATE: float = 0.05  # lambda, knowledge decay rate per step
     

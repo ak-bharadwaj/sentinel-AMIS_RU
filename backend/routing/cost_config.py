@@ -36,7 +36,7 @@ ROAD_CAPACITIES: Dict[str, int] = _weights_cfg.get("road_capacity_vehicles_per_h
 })
 
 HELI_CFG = _weights_cfg.get("helicopter", {})
-HELI_SPEED_KMH: float = HELI_CFG.get("cruise_speed_kmh", 180.0)
+HELI_SPEED_KMH: float = HELI_CFG.get("cruise_speed_kmh", 223.2)
 HELI_WIND_LIMIT_KMH: float = HELI_CFG.get("wind_limit_kmh", 55.0)
 HELI_SMOKE_NO_FLY: float = HELI_CFG.get("smoke_density_no_fly", 0.8)
 HELI_NO_PAD_COST: float = HELI_CFG.get("no_helipad_approach_cost", 0.5)

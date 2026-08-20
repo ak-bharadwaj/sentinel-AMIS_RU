@@ -31,6 +31,22 @@ class BaseAgent:
         self.fuel: float = 100.0  # percentage
         self.crew: int = crew
         self.operational_status: str = "Available" # Available, Busy, Maintenance
+        
+        # EGL (Execution Governance Layer) fields
+        # P2P provenance: source agent IDs for observations received via
+        # peer-to-peer sync in comms blackout zones. Used by DAP's δ
+        # (Source Diversity Index) to weight correlated vs. independent evidence.
+        self.pending_observations_from: List[str] = []
+        # Staged dispatch state: when DAP returns STAGED_EXECUTE (high-I actions),
+        # the agent moves to staging_node and pauses for re-evaluation.
+        self.staged_dispatch_target: Optional[str] = None
+        self.staging_node: Optional[str] = None
+        # Vehicle type: used by DAP σ (crew safety) to look up survivability.
+        # Set by subclass __init__ (ScoutAgent, RescueAgent).
+        self.vehicle_type: str = "STANDARD_CAR"
+        
+        # Original EGL target locked in FCM, separate from target_node
+        self.egl_locked_target: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -52,5 +68,10 @@ class BaseAgent:
             "comms_blackout": self.comms_blackout,
             "fuel": self.fuel,
             "crew": self.crew,
-            "operational_status": self.operational_status
+            "operational_status": self.operational_status,
+            "pending_observations_from": self.pending_observations_from,
+            "staged_dispatch_target": self.staged_dispatch_target,
+            "staging_node": self.staging_node,
+            "vehicle_type": self.vehicle_type,
+            "egl_locked_target": self.egl_locked_target
         }

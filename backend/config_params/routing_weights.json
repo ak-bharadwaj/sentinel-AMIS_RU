@@ -4,7 +4,7 @@
 
   "weights": {
     "w_time":        1.0,
-    "w_risk":        2.0,
+    "w_risk":        1.2,
     "w_uncertainty": 0.5,
     "w_terrain":     0.8
   },

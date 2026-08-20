@@ -12,6 +12,8 @@ from backend.simulation.engine import simulation_engine
 from backend.api.dependencies import simulation_lock
 from pydantic import BaseModel
 from typing import List, Optional
+
+DbDep = Annotated[Session, Depends(get_db)]
 from backend.agents.scout import ScoutAgent
 from backend.agents.rescue import RescueAgent
 from backend.config import settings
@@ -78,7 +80,9 @@ def start_simulation(config: SimulationStartSchema):
         lat_str = f"{config.center_lat:.4f}"
         lon_str = f"{config.center_lon:.4f}"
         span = config.span if config.span else 0.06
-        osm_filename = f"osm_{lat_str}_{lon_str}_{span:.4f}.osm"
+        lat_span = config.lat_span if config.lat_span else span
+        lon_span = config.lon_span if config.lon_span else span
+        osm_filename = f"osm_{lat_str}_{lon_str}_{lat_span:.4f}_{lon_span:.4f}.osm"
         osm_path = os.path.join("datasets", osm_filename)
 
         import xml.etree.ElementTree as ET
@@ -108,8 +112,8 @@ def start_simulation(config: SimulationStartSchema):
             downloaded = False
             for attempt in range(2):  # retry once on failure
                 try:
-                    print(f"[OSM] Download attempt {attempt + 1}/2 for {lat_str},{lon_str} span={span}")
-                    download_osm_data(config.center_lat, config.center_lon, osm_path, span=span)
+                    print(f"[OSM] Download attempt {attempt + 1}/2 for {lat_str},{lon_str} lat_span={lat_span} lon_span={lon_span}")
+                    download_osm_data(config.center_lat, config.center_lon, osm_path, span=span, lat_span=lat_span, lon_span=lon_span)
                     if _validate_osm(osm_path):
                         downloaded = True
                         print(f"[OSM] Download successful and verified ({os.path.getsize(osm_path)//1024}KB)")
@@ -125,18 +129,39 @@ def start_simulation(config: SimulationStartSchema):
                 print(f"[OSM] All download attempts failed. Using synthetic grid.")
                 osm_path = None
 
+    # Override config params from historical preset if chosen
+    if config.env_mode == "HISTORICAL" and config.historical_preset:
+        from backend.simulation.benchmarks.historical_presets import HISTORICAL_PRESETS
+        preset = HISTORICAL_PRESETS.get(config.disaster_type.upper(), {}).get(config.historical_preset, {})
+        if preset:
+            if config.disaster_type.upper() == "EARTHQUAKE":
+                config.magnitude_mw = preset.get("magnitude", config.magnitude_mw)
+            elif config.disaster_type.upper() == "CYCLONE":
+                config.magnitude_mw = preset.get("windspeed", 120.0) / 25.0
+
     # Fetch live weather data
-    weather_data = {"temperature": None, "windspeed": None, "weathercode": None}
-    try:
-        with httpx.Client(timeout=3.0) as client:
-            resp = client.get(
-                f"https://api.open-meteo.com/v1/forecast?latitude={config.center_lat}&longitude={config.center_lon}&current_weather=true"
-            )
-            if resp.status_code == 200:
-                weather_data = resp.json().get("current_weather", weather_data)
-                print(f"[WEATHER] Fetched live data: {weather_data}")
-    except Exception as e:
-        print(f"[WEATHER] Failed to fetch weather data: {e}")
+    weather_data = {"temperature": 27.0, "windspeed": 15.0, "weathercode": 1}
+    if config.env_mode == "LIVE":
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                resp = client.get(
+                    f"https://api.open-meteo.com/v1/forecast?latitude={config.center_lat}&longitude={config.center_lon}&current_weather=true"
+                )
+                if resp.status_code == 200:
+                    weather_data = resp.json().get("current_weather", weather_data)
+                    print(f"[WEATHER] Fetched live data: {weather_data}")
+        except Exception as e:
+            print(f"[WEATHER] Failed to fetch weather data: {e}")
+    else:
+        from backend.simulation.benchmarks.historical_presets import HISTORICAL_PRESETS
+        preset = HISTORICAL_PRESETS.get(config.disaster_type.upper(), {}).get(config.historical_preset, {})
+        weather_data = {
+            "temperature": 28.0,
+            "windspeed": preset.get("windspeed", 15.0),
+            "weathercode": 3 if config.disaster_type.upper() == "FLOOD" else 1,
+            "simulated": True,
+            "preset_name": preset.get("name", "Simulated")
+        }
 
     # 1. Reset graphs and create agents
     try:
@@ -152,7 +177,11 @@ def start_simulation(config: SimulationStartSchema):
             num_zodiacs=config.num_zodiacs,
             num_helicopters=config.num_helicopters,
             num_trucks=config.num_trucks,
-            num_cars=config.num_cars
+            num_cars=config.num_cars,
+            lat_span=config.lat_span,
+            lon_span=config.lon_span,
+            env_mode=config.env_mode,
+            historical_preset=config.historical_preset
         )
         map_mode_used = "REAL" if osm_path else "SYNTHETIC"
     except Exception as e:
@@ -176,7 +205,11 @@ def start_simulation(config: SimulationStartSchema):
             num_zodiacs=config.num_zodiacs,
             num_helicopters=config.num_helicopters,
             num_trucks=config.num_trucks,
-            num_cars=config.num_cars
+            num_cars=config.num_cars,
+            lat_span=config.lat_span,
+            lon_span=config.lon_span,
+            env_mode=config.env_mode,
+            historical_preset=config.historical_preset
         )
 
     simulation_engine.weather = weather_data
@@ -285,7 +318,7 @@ def start_simulation(config: SimulationStartSchema):
     }
 
 @router.post("/save")
-def save_mission(db: Session = Depends(get_db)):
+def save_mission(db: DbDep):
     """Saves the current mission state to the database."""
     from backend.world_model.node import MissionState
     from backend.simulation.engine import simulation_engine
@@ -328,7 +361,7 @@ def save_mission(db: Session = Depends(get_db)):
     return {"status": "Success", "message": "Mission state saved successfully."}
 
 @router.post("/load")
-def load_mission(db: Session = Depends(get_db)):
+def load_mission(db: DbDep):
     """Loads the mission state from the database."""
     from backend.world_model.node import MissionState
     from backend.simulation.engine import simulation_engine
@@ -418,6 +451,15 @@ def step_simulation(background_tasks: BackgroundTasks):
     if replanning_req:
         simulation_engine.replanning_required = False
         
+    # Compute quality metrics for uncertainty-aware coordination
+    belief_nodes = len(world_state.belief.nodes)
+    unknown_edges = sum(1 for u, v, d in world_state.belief.edges(data=True) if d.get('confidence', 1.0) < 0.5)
+    current_blocked_count = sum(1 for uu, vv, d in world_state.ground_truth.edges(data=True) if d.get('blocked', False))
+    
+    weather_info = getattr(simulation_engine, "weather", {})
+    if not isinstance(weather_info, dict):
+        weather_info = {}
+        
     result = {
         "status": "Success",
         "step": simulation_engine.simulation_time,
@@ -430,7 +472,62 @@ def step_simulation(background_tasks: BackgroundTasks):
         "stage_complete": stage_complete,
         "replanning_required": replanning_req,
         "replanning_reason": getattr(simulation_engine, 'replanning_reason', None),
-        "telemetry": getattr(simulation_engine, 'last_telemetry', {})
+        "telemetry": {
+            "weather": {
+                "temperature_c": weather_info.get("temperature", 24.5),
+                "humidity_pct": weather_info.get("humidity", 65.0),
+                "pressure_hpa": weather_info.get("pressure", 1012.0),
+                "wind_speed_kmh": getattr(simulation_engine, "sensor_wind_speed_kmh", 12.0),
+                "wind_direction_deg": weather_info.get("winddirection", 225.0),
+                "rainfall_mm_hr": getattr(simulation_engine, "sensor_rainfall_rate", 0.0),
+                "cloud_cover_pct": weather_info.get("cloudcover", 45.0),
+                "visibility_m": weather_info.get("visibility", 10000.0),
+                "preset_name": weather_info.get("preset_name"),
+                "simulated": weather_info.get("simulated", False)
+            },
+            "hydrology": {
+                "water_depth_m": getattr(simulation_engine, "sensor_water_level_m", 0.0),
+                "water_rise_cm_min": getattr(simulation_engine, "sensor_rainfall_rate", 0.0) * 0.1,
+                "flooded_roads": sum(1 for u, v, d in world_state.ground_truth.edges(data=True) if d.get('blocked', False) and simulation_engine.disaster_type == "FLOOD"),
+                "drainage_efficiency": 85.0 if getattr(simulation_engine, "tide_phase", "LOW TIDE") == "LOW TIDE" else 15.0,
+                "soil_saturation": min(100.0, 45.0 + simulation_engine.simulation_time * 1.5) if simulation_engine.disaster_type == "FLOOD" else 20.0,
+                "river_overflow": True if getattr(simulation_engine, "sensor_water_level_m", 0.0) > 1.2 else False,
+                "coastal_surge_m": getattr(simulation_engine, "sensor_surge_depth_m", 0.0),
+                "tide_state": getattr(simulation_engine, "tide_phase", "LOW TIDE")
+            },
+            "cyclone": {
+                "wind_gust_kmh": getattr(simulation_engine, "sensor_wind_speed_kmh", 0.0) * 1.25,
+                "storm_surge_m": getattr(simulation_engine, "sensor_surge_depth_m", 0.0),
+                "pressure_drop": max(0.0, 1013.0 - weather_info.get("pressure", 995.0)) if simulation_engine.disaster_type == "CYCLONE" else 0.0,
+                "eye_distance_km": max(5.0, 100.0 - simulation_engine.simulation_time * 2.5) if simulation_engine.disaster_type == "CYCLONE" else 999.0,
+                "damage_index": min(100.0, getattr(simulation_engine, "sensor_wind_speed_kmh", 0.0) * 0.6)
+            },
+            "seismic": {
+                "pga_g": getattr(simulation_engine, "sensor_seismic_pga_g", 0.0),
+                "mmi": max(1.0, min(12.0, getattr(simulation_engine, "sensor_seismic_pga_g", 0.0) * 10.0 + 1.0)),
+                "aftershock_probability": max(0.0, 95.0 - simulation_engine.simulation_time * 2.5) if simulation_engine.disaster_type == "EARTHQUAKE" else 0.0,
+                "aftershock_decay": math.exp(-simulation_engine.simulation_time / 10.0) if simulation_engine.disaster_type == "EARTHQUAKE" else 0.0,
+                "epicenter_distance": 12.5
+            },
+            "infrastructure": {
+                "roads_blocked": current_blocked_count,
+                "bridges_damaged": sum(1 for uu, vv, d in world_state.ground_truth.edges(data=True) if d.get('blocked', False) and d.get('is_bridge', False)),
+                "communication_health": max(0.0, 100.0 - len(simulation_engine.blackout_zones) * 10.0),
+                "power_grid": "STABLE" if current_blocked_count < 10 else "DEGRADED",
+                "hospital_capacity": sum(d.get('resources', {}).get('medicine', 100.0) for n, d in world_state.ground_truth.nodes(data=True) if d.get('node_type') == "HOSPITAL") / 12.0,
+                "available_shelters": sum(1 for n, d in world_state.ground_truth.nodes(data=True) if d.get('node_type') == "SHELTER" and d.get('status') != "FLOODED")
+            },
+            "belief": {
+                "belief_quality": getattr(simulation_engine, "history", [{}])[-1].get("map_confidence", 1.0) * 100.0 if simulation_engine.history else 100.0,
+                "average_confidence": getattr(simulation_engine, "history", [{}])[-1].get("map_confidence", 1.0) if simulation_engine.history else 1.0,
+                "unknown_edges": unknown_edges,
+                "sensor_reliability": 100.0 - simulation_engine.corruption_level * 100.0 if hasattr(simulation_engine, 'corruption_level') else 100.0
+            }
+        },
+        "situation_assessment": getattr(simulation_engine, "situation_assessment", {}),
+        "forecasts_15_30_60": getattr(simulation_engine, "forecasts_15_30_60", {}),
+        "ranked_portfolios": getattr(simulation_engine, "ranked_portfolios", []),
+        "whatif_sensitivity": getattr(simulation_engine, "whatif_sensitivity", {})
     }
     simulation_engine.replanning_reason = None  # clear after sending
     
@@ -524,78 +621,89 @@ def get_resources():
 @router.post("/deploy_units")
 def deploy_units(config: DeployUnitsSchema):
     """Manually deploys units and havens/hospitals at nearest nodes."""
-    
-    # 1. Pre-check resource availability
-    scout_count = len(config.scouts)
-    # We assume scouts use SCOUT_CAR by default for now (or a mix based on vehicle_type)
-    scout_types = [s.vehicle_type or "SCOUT_CAR" for s in config.scouts]
-    rescue_types = [r.vehicle_type or "STANDARD_CAR" for r in config.rescues]
-    
-    # Tally required resources
-    required_assets = {}
-    for t in scout_types + rescue_types:
-        required_assets[t] = required_assets.get(t, 0) + 1
+    with simulation_lock:
+        # 1. Pre-check resource availability
+        scout_count = len(config.scouts)
+        # We assume scouts use SCOUT_CAR by default for now (or a mix based on vehicle_type)
+        scout_types = [s.vehicle_type or "SCOUT_CAR" for s in config.scouts]
+        rescue_types = [r.vehicle_type or "STANDARD_CAR" for r in config.rescues]
         
-    for asset, count in required_assets.items():
-        if not simulation_engine.resource_pool.can_deploy(asset, count):
-            return {"status": "Error", "message": f"Insufficient {asset} resources in the national pool."}
+        # Tally required resources
+        required_assets = {}
+        for t in scout_types + rescue_types:
+            required_assets[t] = required_assets.get(t, 0) + 1
             
-    # 2. Deploy havens/hospitals
-    for haven in config.havens:
-        node_id = world_state.get_nearest_node(haven.lat, haven.lon)
-        if node_id:
-            world_state.belief.nodes[node_id]["node_type"] = "SHELTER"
-            world_state.ground_truth.nodes[node_id]["node_type"] = "SHELTER"
-
-    for hospital in config.hospitals:
-        node_id = world_state.get_nearest_node(hospital.lat, hospital.lon)
-        if node_id:
-            world_state.belief.nodes[node_id]["node_type"] = "HOSPITAL"
-            world_state.ground_truth.nodes[node_id]["node_type"] = "HOSPITAL"
-
-    world_state.sync_to_db()
-
-    # 3. Spawning agents and allocating from pool
-    scout_idx = len([a for a in simulation_engine.agents.values() if a.agent_type == "SCOUT"]) + 1
-    for scout in config.scouts:
-        v_type = scout.vehicle_type or "SCOUT_CAR"
-        if simulation_engine.resource_pool.deploy(v_type):
-            node_id = world_state.get_nearest_node(scout.lat, scout.lon)
-            if node_id:
-                scout_id = f"Scout_{scout_idx}"
-                scout_idx += 1
-                agent = ScoutAgent(scout_id, start_node=node_id)
-                agent.vehicle_type = v_type
-                agent.zone_assignment = f"Zone S-M"
-                simulation_engine.agents[scout_id] = agent
-
-    rescue_idx = len([a for a in simulation_engine.agents.values() if a.agent_type == "RESCUE"]) + 1
-    for rescue in config.rescues:
-        v_type = rescue.vehicle_type or "STANDARD_CAR"
-        if simulation_engine.resource_pool.deploy(v_type):
-            node_id = world_state.get_nearest_node(rescue.lat, rescue.lon)
-            if node_id:
-                rescue_id = f"Rescue_{rescue_idx}"
-                rescue_idx += 1
+        for asset, count in required_assets.items():
+            if not simulation_engine.resource_pool.can_deploy(asset, count):
+                return {"status": "Error", "message": f"Insufficient {asset} resources in the national pool."}
                 
-                speed = settings.RESCUE_SPEED
-                capacity = 50
-                if v_type == "HELICOPTER":
-                    speed = settings.RESCUE_SPEED * 2.5
-                    capacity = 15
-                elif v_type == "ZODIAC_BOAT":
-                    speed = settings.RESCUE_SPEED * 1.5
-                    capacity = 25
-                elif v_type == "HIGH_WATER_TRUCK":
-                    speed = settings.RESCUE_SPEED * 0.8
-                    capacity = 40
-
-                agent = RescueAgent(rescue_id, start_node=node_id, capacity=capacity, vehicle_type=v_type)
-                agent.speed = speed
-                agent.zone_assignment = f"Zone R-M ({v_type.replace('_', ' ')})"
-                simulation_engine.agents[rescue_id] = agent
-                
-    return {"status": "Success", "message": "Units deployed successfully."}
+        # 2. Deploy havens/hospitals
+        modified_nodes = []
+        for haven in config.havens:
+            node_id = world_state.get_nearest_node(haven.lat, haven.lon)
+            if node_id:
+                world_state.belief.nodes[node_id]["node_type"] = "SHELTER"
+                world_state.ground_truth.nodes[node_id]["node_type"] = "SHELTER"
+                modified_nodes.append(node_id)
+    
+        for hospital in config.hospitals:
+            node_id = world_state.get_nearest_node(hospital.lat, hospital.lon)
+            if node_id:
+                world_state.belief.nodes[node_id]["node_type"] = "HOSPITAL"
+                world_state.ground_truth.nodes[node_id]["node_type"] = "HOSPITAL"
+                modified_nodes.append(node_id)
+    
+        if modified_nodes:
+            world_state.sync_nodes_to_db(modified_nodes)
+    
+        # 3. Spawning agents and allocating from pool
+        scout_idx = len([a for a in simulation_engine.agents.values() if a.agent_type == "SCOUT"]) + 1
+        for scout in config.scouts:
+            v_type = scout.vehicle_type or "SCOUT_CAR"
+            if simulation_engine.resource_pool.deploy(v_type):
+                node_id = world_state.get_nearest_node(scout.lat, scout.lon)
+                if node_id:
+                    scout_id = f"Scout_{scout_idx}"
+                    scout_idx += 1
+                    agent = ScoutAgent(scout_id, start_node=node_id)
+                    agent.vehicle_type = v_type
+                    agent.zone_assignment = f"Zone S-M"
+                    simulation_engine.agents[scout_id] = agent
+    
+        for rescue in config.rescues:
+            v_type = rescue.vehicle_type or "STANDARD_CAR"
+            if simulation_engine.resource_pool.deploy(v_type):
+                node_id = world_state.get_nearest_node(rescue.lat, rescue.lon)
+                if node_id:
+                    prefix = "Rescue"
+                    if v_type == "HELICOPTER":
+                        prefix = "Heli"
+                    elif v_type == "ZODIAC_BOAT" or v_type == "ZODIAC":
+                        prefix = "Zodiac"
+                    elif v_type == "HIGH_WATER_TRUCK":
+                        prefix = "Truck"
+                        
+                    idx = len([a for a in simulation_engine.agents.values() if getattr(a, 'vehicle_type', None) == v_type]) + 1
+                    rescue_id = f"{prefix}_{idx}"
+                    
+                    speed = settings.RESCUE_SPEED
+                    capacity = 50
+                    if v_type == "HELICOPTER":
+                        speed = settings.RESCUE_SPEED * 2.5
+                        capacity = 15
+                    elif v_type == "ZODIAC_BOAT":
+                        speed = settings.RESCUE_SPEED * 1.5
+                        capacity = 25
+                    elif v_type == "HIGH_WATER_TRUCK":
+                        speed = settings.RESCUE_SPEED * 0.8
+                        capacity = 40
+    
+                    agent = RescueAgent(rescue_id, start_node=node_id, capacity=capacity, vehicle_type=v_type)
+                    agent.speed = speed
+                    agent.zone_assignment = f"Zone R-M ({v_type.replace('_', ' ')})"
+                    simulation_engine.agents[rescue_id] = agent
+                    
+        return {"status": "Success", "message": "Units deployed successfully."}
 
 @router.post("/remove_unit")
 def remove_unit(request: dict):
@@ -704,4 +812,204 @@ def toggle_broadcast(request: ToggleBroadcastSchema):
         
     simulation_engine.broadcast_mode = mode
     simulation_engine.add_event(f"[{simulation_engine.simulation_time}m] 📣 STRATEGIC BROADCAST: Instructions updated to {mode.replace('_', ' ')}.")
-    return {"status": "Success", "broadcast_mode": mode}
+
+@router.get("/benchmark")
+def run_benchmark():
+    """Runs a benchmark comparing Sentinel against greedy, nearest, shortest path, and oracle models."""
+    from backend.decision_engine.benchmark import BenchmarkSuite
+    from backend.world_model.world_state import world_state
+    
+    targets_list = [
+        n_id for n_id, data in world_state.belief.nodes(data=True)
+        if data.get("node_type") in ("POPULATION_ZONE", "BRIDGE", "JUNCTION")
+        and (data.get("triage_immediate", 0) or 0) + (data.get("triage_delayed", 0) or 0) > 0
+    ]
+    vehicles_list = [
+        {"id": agent.id, "location": agent.current_node, "type": agent.vehicle_type}
+        for agent in simulation_engine.agents.values()
+    ]
+    
+    benchmark_res = BenchmarkSuite.run_comparative_benchmark(
+        world_state.belief,
+        world_state.ground_truth,
+        targets_list,
+        vehicles_list,
+        simulation_engine.disaster_type
+    )
+    return benchmark_res
+
+
+class CounterfactualRequest(BaseModel):
+    bridge_collapse: Optional[bool] = False
+    rainfall_multiplier: Optional[float] = 1.2
+    comms_decay_factor: Optional[float] = 0.5
+    comms_failure: Optional[bool] = False
+    helicopter_grounded: Optional[bool] = False
+    mass_casualty: Optional[bool] = False
+    triage_scale: Optional[float] = 1.0
+    aftershock: Optional[bool] = False
+    aftershock_magnitude: Optional[float] = 5.0
+    delay_minutes: Optional[float] = 30.0
+
+
+@router.post("/counterfactual")
+def run_counterfactual(request: CounterfactualRequest):
+    """Run a what-if sensitivity analysis scenario on the current simulation state."""
+    from backend.world_model.world_state import world_state
+    from backend.decision_engine.counterfactual import CounterfactualEngine
+    import math
+
+    if not simulation_engine.coordinator:
+        return {
+            "error": "No simulation running. Start a simulation first.",
+            "impact_summary": "Simulation not initialized."
+        }
+
+    belief = world_state.belief
+    base_node = simulation_engine.coordinator.base_node
+
+    # Find a viable source->target pair for route analysis
+    target_node = None
+    for n_id, ndata in belief.nodes(data=True):
+        if (ndata.get("triage_immediate", 0) or 0) + (ndata.get("triage_delayed", 0) or 0) > 0:
+            target_node = n_id
+            break
+
+    results = {"scenario": "custom", "parameters": request.dict()}
+
+    if target_node and base_node:
+        import networkx as nx
+        base_path = []
+        try:
+            base_path = nx.shortest_path(belief, base_node, target_node, weight="distance")
+        except Exception:
+            base_path = [base_node, target_node] if base_node != target_node else [base_node]
+
+        sensitivity_options = {
+            "rainfall_multiplier": request.rainfall_multiplier,
+            "comms_decay_factor": request.comms_decay_factor,
+            "helicopter_grounded": request.helicopter_grounded,
+        }
+        if request.bridge_collapse:
+            # block a mid-path node to simulate bridge collapse
+            if len(base_path) > 2:
+                sensitivity_options["bridge_collapse_node"] = base_path[len(base_path) // 2]
+
+        try:
+            vehicle_type = "STANDARD_CAR"
+            if request.helicopter_grounded is False:
+                vehicle_type = "HELICOPTER"
+            cf_results = CounterfactualEngine.run_whatif_sensitivity_analysis(
+                belief, base_node, target_node, vehicle_type, base_path, sensitivity_options
+            )
+            results.update(cf_results)
+        except Exception as e:
+            results["analysis_error"] = str(e)
+
+    # Delay penalty analysis
+    triage_immediate = sum(
+        (ndata.get("triage_immediate", 0) or 0) for _, ndata in belief.nodes(data=True)
+    )
+    triage_delayed = sum(
+        (ndata.get("triage_delayed", 0) or 0) for _, ndata in belief.nodes(data=True)
+    )
+    scaled_immediate = int(triage_immediate * (request.triage_scale or 1.0))
+    scaled_delayed = int(triage_delayed * (request.triage_scale or 1.0))
+
+    try:
+        delay_result = CounterfactualEngine.evaluate_delay_penalties(
+            scaled_immediate, scaled_delayed, request.delay_minutes
+        )
+        results["delay_penalty"] = delay_result
+    except Exception as e:
+        results["delay_penalty"] = {"error": str(e)}
+
+    # Comms failure impact
+    if request.comms_failure:
+        comms_nodes = [n for n, d in belief.nodes(data=True) if d.get("node_type") == "COMMS_TOWER"]
+        failed = len(comms_nodes) // 2
+        results["comms_failure"] = {
+            "total_comms_nodes": len(comms_nodes),
+            "nodes_failed": failed,
+            "coverage_loss_pct": round(failed / max(1, len(comms_nodes)) * 100, 1),
+            "impact": f"{failed} of {len(comms_nodes)} comms nodes lost. Confidence decay accelerates.",
+            "remediation": "Deploy scout UAVs to relay zones. Activate satellite uplink."
+        }
+
+    # Aftershock impact
+    if request.aftershock:
+        mag = request.aftershock_magnitude
+        intensity = 1 - math.exp(-0.2 * (mag - 4.0))
+        results["aftershock"] = {
+            "magnitude": mag,
+            "intensity": round(intensity, 3),
+            "expected_additional_damage_pct": round(intensity * 30, 1),
+            "expected_additional_casualties": round(intensity * triage_immediate * 0.3),
+            "impact": f"M{mag} aftershock: +{round(intensity*30)}% structural damage, +{round(intensity*triage_immediate*0.3)} new casualties.",
+            "remediation": "Re-sweep cleared zones. Priority re-triage of immediate cases."
+        }
+
+    results["impact_summary"] = (
+        f"What-if scenario completed. "
+        f"{triage_immediate} immediate / {triage_delayed} delayed casualties in active simulation. "
+        f"Delay of {request.delay_minutes}m estimated to cost ~{round(request.delay_minutes * 0.4)} lives."
+    )
+
+    return results
+
+
+@router.get("/intelligence")
+def get_intelligence():
+    """Returns XAI reasoning tree and situation assessment from the latest decision cycle."""
+    from backend.world_model.world_state import world_state
+    from backend.decision_engine.explainability import ExplainabilityEngine
+    from backend.decision_engine.situation_assessment import SituationAssessmentEngine
+
+    result = {
+        "reasoning_tree": None,
+        "situation_assessment": None,
+        "latest_xai_events": [],
+        "decision_alternatives": []
+    }
+
+    try:
+        situation = SituationAssessmentEngine.compute_indexes(
+            world_state.belief,
+            world_state.ground_truth,
+            getattr(simulation_engine, "disaster_type", None)
+        )
+        result["situation_assessment"] = situation
+    except Exception as e:
+        result["situation_assessment"] = {"error": str(e)}
+
+    try:
+        latest_decision = None
+        xai_events = getattr(simulation_engine, "xai_log", [])
+        result["latest_xai_events"] = xai_events[-20:] if xai_events else []
+
+        # Build reasoning tree from latest decision
+        if simulation_engine.coordinator:
+            latest_decision = {
+                "action": f"Mission Phase {simulation_engine.simulation_time}m",
+                "agents": len(simulation_engine.agents),
+                "confidence": 0.85,
+                "description": "AI decision cycle completed."
+            }
+            if xai_events:
+                last = xai_events[-1]
+                latest_decision["action"] = last.get("action", latest_decision["action"])
+                latest_decision["confidence"] = last.get("confidence", 0.85)
+
+        reasoning = ExplainabilityEngine.generate_rationale(
+            world_state.belief,
+            world_state.ground_truth,
+            latest_decision or {}
+        )
+        result["reasoning_tree"] = reasoning
+    except Exception as e:
+        result["reasoning_tree"] = {"error": str(e)}
+
+    except Exception as alt_err:
+        print(f"[API] Warning: Failed fetching decision alternatives: {alt_err}")
+
+    return result

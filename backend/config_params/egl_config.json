@@ -1,0 +1,150 @@
+{
+  "_comment": "Execution Governance Layer (EGL) configuration. All constants here are EITHER domain-expert-required (Category C) OR engineering defaults requiring sensitivity analysis (Category B). See parameter_provenance.md §5 for justification of each value.",
+  "_version": "1.0",
+
+  "phase_boundaries_minutes": {
+    "_comment": "Golden Hour boundary = 60 min (ICRC Trauma Care 2013; FEMA ICS operational period standard). Sustained Ops = up to 6 hours (FEMA ICS P-1035 operational period). These are literature-backed, not heuristic.",
+    "_category": "A",
+    "golden_hour_end":   60,
+    "sustained_ops_end": 360
+  },
+
+  "irreversibility_coefficients": {
+    "_comment": "Category C — MUST be signed off by emergency management authority before operational deployment. Defaults are engineering estimates based on ICS resource commitment doctrine and UNDRR 2019 guidance on evacuation reversals. authorized_by must be populated.",
+    "_category": "C",
+    "SCOUT_REROUTE":      { "value": 0.10, "authorized_by": "", "basis": "Negligible commitment: only a waypoint change, no fuel committed." },
+    "SCOUT_DISPATCH":     { "value": 0.20, "authorized_by": "", "basis": "Low fuel spend, recallable within one tick (~1 min). Lower than rescue due to no passenger commitment." },
+    "RESCUE_DISPATCH":    { "value": 0.55, "authorized_by": "", "basis": "FEMA ICS resource commitment doctrine: ground team committed for 30+ min, fuel + crew deployed." },
+    "HELICOPTER_AIRLIFT": { "value": 0.75, "authorized_by": "", "basis": "High fuel cost, mechanical wear per sortie, limited daily sortie count. Based on USCG SAR operational cost model." },
+    "EVACUATION_ORDER":   { "value": 0.90, "authorized_by": "", "basis": "UNDRR 2019: mass population movement causes panic if reversed; logistical cascade effect." }
+  },
+
+  "regret_costs": {
+    "_comment": "Category B — engineering defaults with literature basis. Sensitivity range documents what changes ±30% of these values.",
+    "C_route_closure": {
+      "value": 1.5,
+      "_category": "B",
+      "sensitivity_range": [1.0, 2.5],
+      "basis": "Relative cost of losing a route vs acting on bad information (C_info_wrong=1.0 reference). Route closure is worse than bad intel because it is environment-imposed and cannot be corrected by better data alone.",
+      "impact_of_30pct_change": "Affects DEFER/EXECUTE boundary for route-uncertainty-dominant scenarios by ~8-12% of decisions."
+    },
+    "C_golden_hour": {
+      "value": 2.5,
+      "_category": "B",
+      "sensitivity_range": [1.5, 3.0],
+      "basis": "Cowley et al. (1971, J Trauma): survival probability approximately halves after 60 min for severe trauma. Golden hour loss is twice as costly as bad intelligence. Value 2.5 = 2.5× C_info_wrong.",
+      "impact_of_30pct_change": "Affects golden-hour-phase DEFER/EXECUTE split by ~10-15%."
+    },
+    "theta_crisis": {
+      "value": 2.0,
+      "_category": "B",
+      "basis": "ESCALATE threshold set equal to C_golden_hour. Rationale: if both regrets exceed the golden-hour cost, the situation is genuinely critical — no option is clearly better.",
+      "sensitivity_range": [1.5, 2.5]
+    }
+  },
+
+  "decision_margin": {
+    "_comment": "Category B — base margin derived from control theory: 5% of max signal range prevents oscillation. Max R range ≈ 3.0, so 5% = 0.15. Minimum stable margin 0.03 = 1% of range.",
+    "_category": "B",
+    "base_margin": {
+      "value": 0.15,
+      "basis": "Control theory minimum hysteresis: 5% of signal range [0, ~3.0]. Prevents flip-flop between EXECUTE and DEFER on consecutive ticks.",
+      "sensitivity_range": [0.10, 0.20]
+    },
+    "min_margin": {
+      "value": 0.03,
+      "basis": "1% of signal range. Below this, regrets are so close that ESCALATE is the correct decision regardless — oscillation risk is moot.",
+      "_category": "A"
+    }
+  },
+
+  "defer_escalation": {
+    "_comment": "All three values derived from base_margin and golden_hour_end / timestep (60 min / 10 min avg re-eval = 6 ticks). Not independent constants.",
+    "_category": "B",
+    "defer_escalate_count": {
+      "value": 6,
+      "basis": "floor(golden_hour_end / 10 min average re-evaluation) = floor(60/10) = 6. After a full golden-hour cycle of DEFERs, human review is mandatory.",
+      "derivation": "derived from golden_hour_end and average_replanning_interval_minutes"
+    },
+    "defer_margin_decay_per_tick": {
+      "value": 0.02,
+      "basis": "(base_margin - min_margin) / defer_escalate_count = (0.15 - 0.03) / 6 = 0.02. Fully derived — not an independent constant.",
+      "derivation": "derived from base_margin, min_margin, and defer_escalate_count"
+    }
+  },
+
+  "access_equity": {
+    "_comment": "Category B — AEM slope: isolated node (reachability=0) gets +30% urgency boost. Prevents systematic under-allocation to communities with no self-evacuation option.",
+    "aem_slope": {
+      "value": 0.4,
+      "_category": "B",
+      "basis": "Engineering estimate. Sets maximum urgency boost for completely isolated nodes at 30% above baseline. Calibrate against regional equity metrics.",
+      "sensitivity_range": [0.2, 0.5],
+      "impact_of_30pct_change": "Affects dispatch priority for low-reachability nodes by ±9-15% of urgency score."
+    }
+  },
+
+  "source_diversity": {
+    "_comment": "Category B — w_delta weight for source diversity index in epsilon. Allocates 15% of epistemic readiness score to source independence.",
+    "w_delta": {
+      "value": 0.15,
+      "_category": "B",
+      "basis": "Set equal to geva_exploration_weight (0.05 base, boosted to 0.15) to maintain dimensional scale consistency across the system.",
+      "sensitivity_range": [0.10, 0.20]
+    }
+  },
+
+  "staged_dispatch": {
+    "_comment": "Category B — agent commits to this fraction of route before re-evaluating for high-irreversibility actions (I >= 0.70).",
+    "staging_fraction": {
+      "value": 0.67,
+      "_category": "B",
+      "basis": "Engineering estimate: 1/4 of route gives enough proximity for fresher sensor data while limiting fuel committed. Requires field validation.",
+      "sensitivity_range": [0.25, 0.50]
+    },
+    "irreversibility_threshold_for_staging": {
+      "value": 0.80,
+      "basis": "Only stage evacuation orders (I=0.90) to prevent panic. Helicopters (I=0.75) are not staged as they ignore ground blockages and floods.",
+      "sensitivity_range": [0.70, 0.85]
+    }
+  },
+
+  "human_override": {
+    "_comment": "Category C — MUST be set by incident commander per mission type. Operational range: 30s (fast-tempo) to 120s (deliberate). Defaults are starting points only.",
+    "_category": "C",
+    "tbho_timeout_s": {
+      "GOLDEN_HOUR":   { "value": 30, "authorized_by": "", "basis": "Tight timeout during golden hour — every 30s of inaction has measurable survival cost (Cowley 1971)." },
+      "SUSTAINED_OPS": { "value": 60, "authorized_by": "", "basis": "Standard deliberate decision window for non-golden-hour dispatch." },
+      "RECOVERY":      { "value": 90, "authorized_by": "", "basis": "Extended window during recovery phase — fatigue means slower cognition; more time reduces errors." }
+    },
+    "timeout_default_low_irreversibility":  "EXECUTE",
+    "timeout_default_high_irreversibility": "DEFER",
+    "high_irreversibility_threshold": 0.50,
+    "_timeout_default_basis": "Low-I actions (scouts) default EXECUTE on timeout — error is recoverable. High-I actions (rescue/evacuation) default DEFER — irreversible harm avoided. Threshold 0.50 splits scout-class from rescue-class."
+  },
+
+  "ethical_profiles": {
+    "_comment": "Category C — profile weights MUST be authorized by EMA authority before deployment. These encode value judgments about relative worth of crew vs. civilian lives.",
+    "CREW_CONSERVATIVE": {
+      "c_crew_lost": 5.0,
+      "c_resource_waste": 0.5,
+      "mu_wait_boost": 0.8,
+      "authorized_by": "",
+      "basis": "High-risk entry environments (chemical, structural collapse). Crew safety paramount."
+    },
+    "BALANCED": {
+      "c_crew_lost": 3.0,
+      "c_resource_waste": 0.5,
+      "mu_wait_boost": 1.0,
+      "authorized_by": "",
+      "basis": "Standard multi-victim flood/earthquake operations. Default profile."
+    },
+    "CIVILIAN_PRIORITY": {
+      "c_crew_lost": 1.5,
+      "c_resource_waste": 0.5,
+      "mu_wait_boost": 1.8,
+      "authorized_by": "",
+      "basis": "Mass casualty events where civilian survival probability degrades rapidly. Accepts higher crew risk."
+    }
+  }
+}

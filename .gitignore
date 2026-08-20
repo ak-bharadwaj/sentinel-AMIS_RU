@@ -31,3 +31,10 @@ node_modules/
 scratch/
 Document1.docx
 chrome-profile-temp/
+*.7z
+
+# Track paper figures & artifacts
+!research/figures/*
+!research/artifacts/*
+
+

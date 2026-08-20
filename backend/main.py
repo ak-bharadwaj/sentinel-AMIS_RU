@@ -12,6 +12,7 @@ from backend.api.analytics import router as analytics_router
 from backend.api.disaster_api import router as disaster_router
 from backend.api.simulation import router as simulation_router
 from backend.api.websocket import router as websocket_router
+from backend.api.egl_api import router as egl_router
 
 # Initialize Database tables
 Base.metadata.create_all(bind=engine)
@@ -38,3 +39,4 @@ app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(disaster_router, prefix=settings.API_V1_STR)
 app.include_router(simulation_router, prefix=settings.API_V1_STR)
 app.include_router(websocket_router, prefix=settings.API_V1_STR)
+app.include_router(egl_router, prefix=settings.API_V1_STR)

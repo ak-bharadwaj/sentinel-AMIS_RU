@@ -129,7 +129,7 @@ class EarthquakeModule(object):
             self.epicenter_lat = (FAULT_LINE[0][0] + FAULT_LINE[1][0]) / 2.0
             self.epicenter_lon = (FAULT_LINE[0][1] + FAULT_LINE[1][1]) / 2.0
 
-        shockwave_radius = 0.003 + (step * 0.004)
+        shockwave_radius_m = (0.003 + (step * 0.004)) * 111000.0
 
         for n_id, data in graph.nodes(data=True):
             lat = data.get('y', data.get('lat'))
@@ -137,9 +137,9 @@ class EarthquakeModule(object):
             if lat is None or lon is None:
                 continue
 
-            dist_to_epicenter = math.hypot(lat - self.epicenter_lat, lon - self.epicenter_lon)
+            dist_to_epicenter_m = haversine_distance(lat, lon, self.epicenter_lat, self.epicenter_lon)
 
-            if dist_to_epicenter <= shockwave_radius:
+            if dist_to_epicenter_m <= shockwave_radius_m:
                 vulnerability = 0.2
                 ntype = data.get('node_type', 'ROAD')
                 if ntype == "BRIDGE":
@@ -150,7 +150,7 @@ class EarthquakeModule(object):
                 if data.get("is_tall_building_zone", False):
                     vulnerability = min(1.0, vulnerability * 1.5)
 
-                dist_km = dist_to_epicenter * 111.0
+                dist_km = dist_to_epicenter_m / 1000.0
                 vs30 = self.get_vs30(data)
                 pga = bssa14_pga(self.magnitude_mw, dist_km, vs30)
 
@@ -172,5 +172,14 @@ class EarthquakeModule(object):
                             graph.edges[n_id, neighbor]['blocked'] = True
                             graph.edges[n_id, neighbor]['confidence'] = 1.0
                             newly_blocked_edges.append((n_id, neighbor))
+            elif dist_to_epicenter_m > shockwave_radius_m and data.get('status') == "DANGER" and data.get('node_type') not in ("HOSPITAL", "SHELTER"):
+                # Natural attenuation of minor dust/debris post-shockwave
+                if data.get('p_danger', 0.0) < 0.90:
+                    data['status'] = "SAFE"
+                    data['p_danger'] = max(0.1, data.get('p_danger', 0.8) - 0.2)
+                    for neighbor in list(graph.neighbors(n_id)):
+                        if graph.has_edge(n_id, neighbor) and graph.nodes[neighbor].get('status') == 'SAFE':
+                            graph.edges[n_id, neighbor]['blocked'] = False
+                            graph.edges[n_id, neighbor]['confidence'] = 1.0
 
         return newly_blocked_edges

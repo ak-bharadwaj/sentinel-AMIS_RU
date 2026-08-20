@@ -15,7 +15,14 @@ def get_metrics():
         "disaster_type": simulation_engine.disaster_type,
         "weather": getattr(simulation_engine, "weather", None),
         "history": simulation_engine.history,
-        "briefing": getattr(simulation_engine, "latest_briefing", None)
+        "briefing": getattr(simulation_engine, "latest_briefing", None),
+        "telemetry": {
+            "rainfall_rate_mm_hr": getattr(simulation_engine, "sensor_rainfall_rate", 0.0),
+            "water_level_m": getattr(simulation_engine, "sensor_water_level_m", 0.0),
+            "wind_speed_kmh": getattr(simulation_engine, "sensor_wind_speed_kmh", 0.0),
+            "surge_depth_m": getattr(simulation_engine, "sensor_surge_depth_m", 0.0),
+            "seismic_pga_g": getattr(simulation_engine, "sensor_seismic_pga_g", 0.0)
+        }
     }
 
 @router.get("/export_csv")

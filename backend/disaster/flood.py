@@ -126,7 +126,7 @@ class FloodModule(object):
             drain_rate = data.get("drainage_accumulation_rate", 1.0)
 
             # Base accumulation: lower terrain + high TWI + rainfall
-            accumulation_rate = max(0.05, 1.0 - (eff_elev / 120.0)) * coastal_multiplier * tunnel_multiplier
+            accumulation_rate = max(0.05, 1.0 - (eff_elev / 30.0)) * coastal_multiplier * tunnel_multiplier
             water_gain = accumulation_rate * drain_rate * self.rainfall * 1.8
 
             data["water_level"] = data.get("water_level", 0.0) + water_gain
@@ -140,6 +140,9 @@ class FloodModule(object):
 
             w_u = u_data.get("water_level", 0.0)
             w_v = v_data.get("water_level", 0.0)
+            if w_u <= 0.001 and w_v <= 0.001:
+                continue
+
             elev_u = self._eff_elev(u_data)
             elev_v = self._eff_elev(v_data)
 
@@ -196,10 +199,20 @@ class FloodModule(object):
                             graph.edges[n_id, neighbor]["blocked"] = True
                             graph.edges[n_id, neighbor]["confidence"] = 1.0
                             newly_blocked_edges.append((n_id, neighbor))
+            elif water_above_road <= params.flood_car_blocked_m and current_status == "FLOODED":
+                data["status"] = "SAFE"
+                data["p_danger"] = max(0.05, data.get("p_danger", 1.0) - 0.5)
+                for neighbor in list(graph.neighbors(n_id)):
+                    if not graph.has_edge(n_id, neighbor):
+                        continue
+                    neighbor_status = graph.nodes[neighbor].get("status", "SAFE")
+                    if neighbor_status == "SAFE":
+                        graph.edges[n_id, neighbor]["blocked"] = False
+                        graph.edges[n_id, neighbor]["confidence"] = 1.0
 
         # 4. Bridge closures — checks effective head vs bridge effective_elevation
         for u, v, edge_data in graph.edges(data=True):
-            if not edge_data.get("is_bridge") or edge_data.get("blocked"):
+            if not edge_data.get("is_bridge"):
                 continue
             wl_u = graph.nodes[u].get("water_level", 0.0)
             wl_v = graph.nodes[v].get("water_level", 0.0)
@@ -208,8 +221,12 @@ class FloodModule(object):
             max_wl = max(wl_u, wl_v)
             # Bridge closes when total water head exceeds bridge clearance
             if max_wl - eff_elev_edge > params.flood_bridge_blocked_m:
-                edge_data["blocked"] = True
+                if not edge_data.get("blocked"):
+                    edge_data["blocked"] = True
+                    edge_data["confidence"] = 1.0
+                    newly_blocked_edges.append((u, v))
+            elif edge_data.get("blocked"):
+                edge_data["blocked"] = False
                 edge_data["confidence"] = 1.0
-                newly_blocked_edges.append((u, v))
 
         return newly_blocked_edges

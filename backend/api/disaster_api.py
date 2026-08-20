@@ -174,11 +174,11 @@ def inject_disaster(config: DisasterInjectSchema):
                     data["p_danger"] = min(1.0, data.get("p_danger", 0.0) + effective_intensity * 0.8)
                     
                     if config.disaster_type.upper() == "FLOOD":
-                        data["water_level"] = data.get("water_level", 0.0) + effective_intensity * 30.0
+                        data["water_level"] = float(data.get("water_level", 0.0) or 0.0) + effective_intensity * 30.0
                         if data["water_level"] > 15.0 and data.get("node_type") not in ("HOSPITAL", "SHELTER"):
                             data["status"] = "FLOODED"
                     else:  # EARTHQUAKE
-                        if data["p_danger"] > 0.75 and data.get("node_type") not in ("HOSPITAL", "SHELTER"):
+                        if float(data.get("p_danger", 0.0) or 0.0) > 0.75 and data.get("node_type") not in ("HOSPITAL", "SHELTER"):
                             data["status"] = "DANGER"
                             
                     # Sync back to belief state immediately

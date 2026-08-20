@@ -28,10 +28,10 @@ def test_knowledge_decay():
     # Run decay with lambda = 0.10
     decay_confidence(g, lambda_decay=0.10)
     
-    # Check node decay: A_new = 1.0 * e^-0.10 = 0.904837
-    # B_new = 0.8 * e^-0.10 = 0.72387
-    assert math.isclose(g.nodes["A"]["p_state_correct"], math.exp(-0.1), abs_tol=1e-5)
-    assert math.isclose(g.nodes["B"]["p_state_correct"], 0.8 * math.exp(-0.1), abs_tol=1e-5)
+    # Check node decay towards 0.5: A_new = 0.5 + (1.0 - 0.5) * e^-0.10 = 0.952418
+    # B_new = 0.5 + (0.8 - 0.5) * e^-0.10 = 0.77145
+    assert math.isclose(g.nodes["A"]["p_state_correct"], 0.5 + 0.5 * math.exp(-0.1), abs_tol=1e-5)
+    assert math.isclose(g.nodes["B"]["p_state_correct"], 0.5 + 0.3 * math.exp(-0.1), abs_tol=1e-5)
     
     # Check edge average sync: (A_new + B_new)/2
     expected_edge_conf = (g.nodes["A"]["p_state_correct"] + g.nodes["B"]["p_state_correct"]) / 2.0

@@ -25,7 +25,7 @@ class SentinelParameters:
     # Simulation timing
     # -----------------------------------------------------------------------
     timestep_duration_s: int = 60          # Seconds per simulation step
-    max_simulation_steps: int = 60         # Total steps per run
+    max_simulation_steps: int = 1440        # Total steps per run (24 hours)
 
     # -----------------------------------------------------------------------
     # Knowledge decay
@@ -40,16 +40,17 @@ class SentinelParameters:
     # Cyclone: storm surge drowning. Wildfire: proximity to flame front.
     # These should be calibrated to regional historical casualty data.
     # -----------------------------------------------------------------------
-    gamma_flood:      float = 0.002        # 1/min — slow onset, mostly mobile victims
-    gamma_earthquake: float = 0.016        # 1/min — rubble entrapment
-    gamma_cyclone:    float = 0.010        # 1/min — storm surge / debris
-    gamma_wildfire:   float = 0.050        # 1/min — active fire front proximity
+    gamma_flood:      float = 0.0005       # 1/min — slow onset, mostly mobile victims
+    gamma_earthquake: float = 0.008        # 1/min — rubble entrapment
+    gamma_cyclone:    float = 0.005        # 1/min — storm surge / debris
+    gamma_wildfire:   float = 0.020        # 1/min — active fire front proximity
 
     # -----------------------------------------------------------------------
     # Agent speeds
     # -----------------------------------------------------------------------
     scout_speed_ms:   float = 15.0         # m/s (~54 km/h)
     rescue_speed_ms:  float = 10.0         # m/s (~36 km/h)
+    helicopter_speed_ms: float = 62.0      # m/s (~223 km/h HAL Dhruv cruise speed)
 
     # -----------------------------------------------------------------------
     # Flood thresholds [metres]
@@ -74,7 +75,7 @@ class SentinelParameters:
     # ASSUMPTION: these EV weightings are heuristic.
     # -----------------------------------------------------------------------
     geva_exploration_weight:   float = 0.05   # Information-gain exploration bonus
-    geva_overlap_ev_penalty:   float = 8.0    # EV penalty per shared route edge
+    geva_overlap_ev_penalty:   float = 12.0   # EV penalty per shared route edge
 
     # -----------------------------------------------------------------------
     # Grid / procedural generation

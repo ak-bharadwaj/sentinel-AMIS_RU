@@ -1,6 +1,6 @@
 import networkx as nx
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 
 db_lock = threading.RLock()
@@ -20,6 +20,85 @@ from backend.world_model.node import NodeModel
 from backend.world_model.edge import EdgeModel
 from backend.database import SessionLocal, Base, engine
 
+class CoWGraph(nx.Graph):
+    """
+    A Copy-on-Write subclass of nx.Graph.
+    It delays deep copying of the graph data until a write/mutation is attempted.
+    """
+    def __init__(self, base_graph: nx.Graph):
+        super().__init__()
+        self._base = base_graph
+        self._mutated = False
+        # Share references initially to avoid copying overhead
+        self.graph = base_graph.graph
+        self._node = base_graph._node
+        self._adj = base_graph._adj
+
+    def _trigger_cow(self):
+        if not self._mutated:
+            # Shallow copy the dictionaries to isolate structure and attribute dicts
+            self._node = {node: data.copy() for node, data in self._base._node.items()}
+            self._adj = {u: {v: data.copy() for v, data in nbrs.items()} for u, nbrs in self._base._adj.items()}
+            self.graph = self._base.graph.copy()
+            self._mutated = True
+
+    def add_node(self, node_for_adding, **attr):
+        self._trigger_cow()
+        super().add_node(node_for_adding, **attr)
+
+    def add_nodes_from(self, nodes_for_adding, **attr):
+        self._trigger_cow()
+        super().add_nodes_from(nodes_for_adding, **attr)
+
+    def remove_node(self, n):
+        self._trigger_cow()
+        super().remove_node(n)
+
+    def remove_nodes_from(self, nodes):
+        self._trigger_cow()
+        super().remove_nodes_from(nodes)
+
+    def add_edge(self, u_of_edge, v_of_edge, **attr):
+        self._trigger_cow()
+        super().add_edge(u_of_edge, v_of_edge, **attr)
+
+    def add_edges_from(self, ebunch_to_add, **attr):
+        self._trigger_cow()
+        super().add_edges_from(ebunch_to_add, **attr)
+
+    def remove_edge(self, u, v):
+        self._trigger_cow()
+        super().remove_edge(u, v)
+
+    def remove_edges_from(self, ebunch):
+        self._trigger_cow()
+        super().remove_edges_from(ebunch)
+
+    def clear(self):
+        self._trigger_cow()
+        super().clear()
+
+    @property
+    def nodes(self):
+        self._trigger_cow()
+        return super().nodes
+
+    @property
+    def edges(self):
+        self._trigger_cow()
+        return super().edges
+
+    @property
+    def adj(self):
+        self._trigger_cow()
+        return super().adj
+
+    def copy(self, as_view=False):
+        if as_view:
+            return super().copy(as_view=True)
+        self._trigger_cow()
+        return nx.Graph(self)
+
 class WorldState:
     ground_truth: Any
     belief: Any
@@ -33,14 +112,21 @@ class WorldState:
         self.nodes_dict = {}  # id -> NodeModel
         self.edges_dict = {}  # id -> EdgeModel
         self.map_mode = None  # Caches "REAL" or "SYNTHETIC" mode of current graph
+        self._spatial_tree = None
+        self._spatial_nodes = []
+        self._node_names_cache = {}
+
+    def get_belief_snapshot(self) -> nx.Graph:
+        """Returns a Copy-on-Write snapshot of the current belief graph."""
+        return CoWGraph(self.belief)
 
     @lock_db
-    def initialize(self, osm_path: Optional[str] = None, center_lat: float = 37.7749, center_lon: float = -122.4194, corruption_level: float = 0.6) -> None:
+    def initialize(self, osm_path: Optional[str] = None, center_lat: float = 37.7749, center_lon: float = -122.4194, corruption_level: float = 0.6, lat_span: Optional[float] = None, lon_span: Optional[float] = None, force_rebuild: bool = False) -> None:
         """Initializes both graphs. Synchronizes initial state to database."""
         requested_mode = "REAL" if osm_path else "SYNTHETIC"
         # Check if the correct graph is already loaded in memory to perform a fast reset
         import math
-        if len(self.ground_truth.nodes) > 0 and self.map_mode == requested_mode:
+        if len(self.ground_truth.nodes) > 0 and self.map_mode == requested_mode and not force_rebuild:
             # Simple check if center is roughly the same to avoid reloading unless requested
             nodes_data = [data for _, data in self.ground_truth.nodes(data=True)]
             if nodes_data:
@@ -49,7 +135,20 @@ class WorldState:
                 # Tightened from 0.05 to 0.001 to ensure accurate location selector response
                 from backend.config_params.parameters import params
                 threshold = getattr(params, 'location_reset_threshold_deg', 0.001)
-                if math.hypot(avg_lat - center_lat, avg_lon - center_lon) < threshold:
+                
+                # Check if dimensions also match to avoid cache collisions
+                dim_match = True
+                if lat_span is not None and lon_span is not None:
+                    lat_max = max(d.get('lat', 0) for d in nodes_data)
+                    lat_min = min(d.get('lat', 0) for d in nodes_data)
+                    lon_max = max(d.get('lon', 0) for d in nodes_data)
+                    lon_min = min(d.get('lon', 0) for d in nodes_data)
+                    curr_lat_span = (lat_max - lat_min) / 2.0
+                    curr_lon_span = (lon_max - lon_min) / 2.0
+                    if abs(curr_lat_span - lat_span) > 0.005 or abs(curr_lon_span - lon_span) > 0.005:
+                        dim_match = False
+
+                if math.hypot(avg_lat - center_lat, avg_lon - center_lon) < threshold and dim_match:
                     print(f"Using cached World Model (mode={self.map_mode}).")
                     from backend.simulation.corruption import corrupt_belief_graph
                     self.belief = corrupt_belief_graph(self.ground_truth, corruption_level)
@@ -59,13 +158,18 @@ class WorldState:
 
         db = SessionLocal()
         try:
+            from backend.config_params.parameters import params
             # Clear in-memory graphs and dictionaries
             self.ground_truth.clear()
             self.belief.clear()
             self.nodes_dict.clear()
             self.edges_dict.clear()
+            self._spatial_tree = None
+            self._spatial_nodes = []
+            self._node_names_cache = {}
 
             # 1. Clear database tables cleanly instead of expensive dropping of metadata
+            Base.metadata.create_all(bind=engine)
             from sqlalchemy import text
             db.execute(text("DELETE FROM edges"))
             db.execute(text("DELETE FROM nodes"))
@@ -75,10 +179,12 @@ class WorldState:
 
 
             # 2. Build graph nodes/edges lists
-            if osm_path:
+            import os
+            if osm_path and os.path.exists(osm_path):
                 nodes, edges = load_osm_xml(osm_path)
             else:
-                nodes, edges = build_synthetic_graph(center_lat=center_lat, center_lon=center_lon)
+                nodes, edges = build_synthetic_graph(center_lat=center_lat, center_lon=center_lon, lat_span=lat_span, lon_span=lon_span)
+
 
             # 3. Save to memory dictionaries and NetworkX graphs
             for node in nodes:
@@ -97,13 +203,15 @@ class WorldState:
                     status=node.status,
                     is_coastal=is_coastal,
                     is_bridge=is_bridge,
+                    capacity=getattr(node, 'capacity', 8000 if node.node_type == 'SHELTER' else (4000 if node.node_type == 'HOSPITAL' else 0)),
+                    is_staging=getattr(node, 'is_staging', node.node_type in ('SHELTER', 'HOSPITAL')),
                     triage_immediate=getattr(node, 'triage_immediate', 0),
                     triage_delayed=getattr(node, 'triage_delayed', 0),
                     triage_minor=getattr(node, 'triage_minor', 0),
                     dist_to_water=getattr(node, 'dist_to_water', getattr(params, 'infinite_distance_m', 999999.0)),
                     dist_to_coast=getattr(node, 'dist_to_coast', getattr(params, 'infinite_distance_m', 999999.0)),
                     is_tall_building_zone=bool(getattr(node, 'is_tall_building_zone', 0)),
-                    last_observed=getattr(node, 'last_observed', datetime.utcnow())
+                    last_observed=getattr(node, 'last_observed', datetime.now(timezone.utc))
                 )
                 self.belief.add_node(
                     node.id, 
@@ -117,13 +225,15 @@ class WorldState:
                     status=node.status,
                     is_coastal=is_coastal,
                     is_bridge=is_bridge,
+                    capacity=getattr(node, 'capacity', 8000 if node.node_type == 'SHELTER' else (4000 if node.node_type == 'HOSPITAL' else 0)),
+                    is_staging=getattr(node, 'is_staging', node.node_type in ('SHELTER', 'HOSPITAL')),
                     triage_immediate=getattr(node, 'triage_immediate', 0),
                     triage_delayed=getattr(node, 'triage_delayed', 0),
                     triage_minor=getattr(node, 'triage_minor', 0),
                     dist_to_water=getattr(node, 'dist_to_water', getattr(params, 'infinite_distance_m', 999999.0)),
                     dist_to_coast=getattr(node, 'dist_to_coast', getattr(params, 'infinite_distance_m', 999999.0)),
                     is_tall_building_zone=bool(getattr(node, 'is_tall_building_zone', 0)),
-                    last_observed=getattr(node, 'last_observed', datetime.utcnow())
+                    last_observed=getattr(node, 'last_observed', datetime.now(timezone.utc))
                 )
 
             for edge in edges:
@@ -209,7 +319,7 @@ class WorldState:
                     "dist_to_water": data.get("dist_to_water", 999999.0),
                     "dist_to_coast": data.get("dist_to_coast", 999999.0),
                     "is_tall_building_zone": int(data.get("is_tall_building_zone", False)),
-                    "last_observed": datetime.utcnow()
+                    "last_observed": datetime.now(timezone.utc)
                 }
                 for n_id, data in self.belief.nodes(data=True)
             ]
@@ -223,7 +333,7 @@ class WorldState:
                     "confidence": data.get("confidence", 1.0),
                     "blocked": data.get("blocked", False),
                     "speed_factor": data.get("speed_factor", 1.0),
-                    "last_observed": datetime.utcnow(),
+                    "last_observed": datetime.now(timezone.utc),
                     "name": data.get("name", "Unnamed Road"),
                     "geometry": json.dumps(data.get("geometry")) if data.get("geometry") else None
                 }
@@ -284,6 +394,33 @@ class WorldState:
             db.close()
 
     @lock_db
+    def sync_nodes_to_db(self, node_ids: List[str]) -> None:
+        """Syncs only the specified nodes to the database."""
+        if not node_ids:
+            return
+        db = SessionLocal()
+        try:
+            for n_id in node_ids:
+                if n_id in self.belief.nodes:
+                    node_data = self.belief.nodes[n_id]
+                    db.query(NodeModel).filter(NodeModel.id == n_id).update({
+                        "node_type": node_data.get('node_type', 'ROAD'),
+                        "p_danger": node_data.get('p_danger', 0.0),
+                        "p_state_correct": node_data.get('p_state_correct', 1.0),
+                        "status": node_data.get('status', 'SAFE'),
+                        "population": node_data.get('population', 0),
+                        "triage_immediate": node_data.get('triage_immediate', 0),
+                        "triage_delayed": node_data.get('triage_delayed', 0),
+                        "triage_minor": node_data.get('triage_minor', 0),
+                        "dist_to_water": node_data.get('dist_to_water', 999999.0),
+                        "dist_to_coast": node_data.get('dist_to_coast', 999999.0),
+                        "is_tall_building_zone": int(node_data.get('is_tall_building_zone', False))
+                    })
+            db.commit()
+        finally:
+            db.close()
+
+    @lock_db
     def get_nodes(self) -> List[Dict[str, Any]]:
         # Only return critical nodes to keep payload tiny and avoid map clutter
         return [
@@ -327,6 +464,9 @@ class WorldState:
 
     def get_node_human_name(self, node_id: str) -> str:
         """Generates a human-readable name for a node based on adjacent street names."""
+        if hasattr(self, '_node_names_cache') and node_id in self._node_names_cache:
+            return self._node_names_cache[node_id]
+
         if node_id not in self.belief.nodes:
             return f"Node {node_id}"
 
@@ -349,13 +489,20 @@ class WorldState:
             lat = ndata.get("lat")
             lon = ndata.get("lon")
             if lat is not None and lon is not None:
-                return f"Junction ({lat:.4f}, {lon:.4f})"
-            return f"Junction {node_id}"
+                res = f"Junction ({lat:.4f}, {lon:.4f})"
+            else:
+                res = f"Junction {node_id}"
+        else:
+            sorted_names = sorted(list(street_names))
+            if len(sorted_names) >= 2:
+                res = f"{sorted_names[0]} & {sorted_names[1]} Junction"
+            else:
+                res = f"{sorted_names[0]} (Midsection)"
 
-        sorted_names = sorted(list(street_names))
-        if len(sorted_names) >= 2:
-            return f"{sorted_names[0]} & {sorted_names[1]} Junction"
-        return f"{sorted_names[0]} (Midsection)"
+        if not hasattr(self, '_node_names_cache'):
+            self._node_names_cache = {}
+        self._node_names_cache[node_id] = res
+        return res
 
 
     @lock_db
@@ -424,8 +571,8 @@ class WorldState:
             try:
                 _, idx = self._spatial_tree.query([lat, lon])
                 return self._spatial_nodes[idx][0]
-            except Exception:
-                pass
+            except Exception as spatial_err:
+                print(f"[WorldState] Spatial tree query fallback to haversine: {spatial_err}")
                 
         from backend.world_model.graph_builder import haversine_distance
         nodes_data = [(n_id, d) for n_id, d in self.belief.nodes(data=True)

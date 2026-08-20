@@ -6,27 +6,35 @@ export default function SelectionMap({
   centerLon = 72.8777,
   span = 0.06,
   onChange,
-  mapHeight = "160px"
+  mapHeight = "160px",
+  initialLatSpan = 0.06,
+  initialLngSpan = 0.06
 }) {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
   const markerRef = useRef(null);
-  const cornerMarkerRef = useRef(null);
   const rectangleRef = useRef(null);
-  const [currentSpan, setCurrentSpan] = useState(span);
-  // ── KEY FIX: keep a ref so closures always see the latest span ──
-  const spanRef = useRef(span);
+  
+  // Independent latitude/longitude spans for MS Paint resizing control
+  const [latSpan, setLatSpan] = useState(initialLatSpan);
+  const [lngSpan, setLngSpan] = useState(initialLngSpan);
+
+  const latSpanRef = useRef(initialLatSpan);
+  const lngSpanRef = useRef(initialLngSpan);
   const onChangeRef = useRef(onChange);
 
-  // Keep refs current on every render
-  useEffect(() => { spanRef.current = currentSpan; }, [currentSpan]);
+  useEffect(() => { latSpanRef.current = latSpan; }, [latSpan]);
+  useEffect(() => { lngSpanRef.current = lngSpan; }, [lngSpan]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  const updateRectangle = (lat, lon, s) => {
+  // Average span for display & parent state syncing
+  const currentSpan = (latSpan + lngSpan) / 2.0;
+
+  const updateRectangle = (lat, lon, lSpan, gSpan) => {
     if (rectangleRef.current) {
       rectangleRef.current.setBounds([
-        [lat - s, lon - s],
-        [lat + s, lon + s]
+        [lat - lSpan, lon - gSpan],
+        [lat + lSpan, lon + gSpan]
       ]);
     }
   };
@@ -42,21 +50,20 @@ export default function SelectionMap({
       shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
     });
 
-    if (leafletMap.current) return; // already initialised
+    if (leafletMap.current) return;
 
     const map = L.map(mapRef.current, {
       zoomControl: true,
       attributionControl: false,
     }).setView([centerLat, centerLon], 12);
 
-    // Google Maps style tile (CartoDB Voyager)
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
     }).addTo(map);
 
     leafletMap.current = map;
 
-    const initSpan = spanRef.current;
+    const initSpan = latSpanRef.current;
 
     // ── Crosshair center marker ──────────────────────────────────────────
     const crosshairIcon = L.divIcon({
@@ -76,23 +83,95 @@ export default function SelectionMap({
 
     // ── Bounding box rectangle ──────────────────────────────────────────
     const rectangle = L.rectangle(
-      [[centerLat - initSpan, centerLon - initSpan], [centerLat + initSpan, centerLon + initSpan]],
+      [[centerLat - initialLatSpan, centerLon - initialLngSpan], [centerLat + initialLatSpan, centerLon + initialLngSpan]],
       { color: "#4f46e5", weight: 2, fill: false, dashArray: "6,4", interactive: true }
     ).addTo(map);
     rectangleRef.current = rectangle;
 
-    // ── Corner resize handle ─────────────────────────────────────────────
-    const cornerMarker = L.marker([centerLat - initSpan, centerLon + initSpan], {
-      draggable: true,
-      title: "Drag to resize",
-      icon: L.divIcon({
-        className: "",
-        html: `<div style="width:14px;height:14px;background:#4f46e5;border:2.5px solid #fff;border-radius:4px;box-shadow:0 2px 5px rgba(0,0,0,0.4);cursor:se-resize;"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
-      })
-    }).addTo(map);
-    cornerMarkerRef.current = cornerMarker;
+    // ── 8 Resize Handles (4 Edges & 4 Corners) ───────────────────────────
+    const handleGroup = L.layerGroup().addTo(map);
+
+    const createHandleIcon = (cursorType) => L.divIcon({
+      className: "",
+      html: `<div style="width:12px;height:12px;background:#4f46e5;border:2.5px solid #fff;border-radius:3px;box-shadow:0 1.5px 4px rgba(0,0,0,0.4);cursor:${cursorType};"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+
+    const handles = {
+      n: L.marker([centerLat + initialLatSpan, centerLon], { draggable: true, icon: createHandleIcon("n-resize") }),
+      s: L.marker([centerLat - initialLatSpan, centerLon], { draggable: true, icon: createHandleIcon("s-resize") }),
+      e: L.marker([centerLat, centerLon + initialLngSpan], { draggable: true, icon: createHandleIcon("e-resize") }),
+      w: L.marker([centerLat, centerLon - initialLngSpan], { draggable: true, icon: createHandleIcon("w-resize") }),
+      ne: L.marker([centerLat + initialLatSpan, centerLon + initialLngSpan], { draggable: true, icon: createHandleIcon("ne-resize") }),
+      nw: L.marker([centerLat + initialLatSpan, centerLon - initialLngSpan], { draggable: true, icon: createHandleIcon("nw-resize") }),
+      se: L.marker([centerLat - initialLatSpan, centerLon + initialLngSpan], { draggable: true, icon: createHandleIcon("se-resize") }),
+      sw: L.marker([centerLat - initialLatSpan, centerLon - initialLngSpan], { draggable: true, icon: createHandleIcon("sw-resize") }),
+    };
+
+    Object.values(handles).forEach(h => h.addTo(handleGroup));
+
+    const syncHandles = (lat, lon, lSpan, gSpan) => {
+      handles.n.setLatLng([lat + lSpan, lon]);
+      handles.s.setLatLng([lat - lSpan, lon]);
+      handles.e.setLatLng([lat, lon + gSpan]);
+      handles.w.setLatLng([lat, lon - gSpan]);
+      handles.ne.setLatLng([lat + lSpan, lon + gSpan]);
+      handles.nw.setLatLng([lat + lSpan, lon - gSpan]);
+      handles.se.setLatLng([lat - lSpan, lon + gSpan]);
+      handles.sw.setLatLng([lat - lSpan, lon - gSpan]);
+    };
+
+    map.syncHandlesGlobal = syncHandles;
+    syncHandles(centerLat, centerLon, initialLatSpan, initialLngSpan);
+
+    const onResizeDrag = (handleKey) => {
+      const mPos = marker.getLatLng();
+      let lSpan = latSpanRef.current;
+      let gSpan = lngSpanRef.current;
+
+      if (handleKey === "n") {
+        lSpan = Math.abs(handles.n.getLatLng().lat - mPos.lat);
+      } else if (handleKey === "s") {
+        lSpan = Math.abs(handles.s.getLatLng().lat - mPos.lat);
+      } else if (handleKey === "e") {
+        gSpan = Math.abs(handles.e.getLatLng().lng - mPos.lng);
+      } else if (handleKey === "w") {
+        gSpan = Math.abs(handles.w.getLatLng().lng - mPos.lng);
+      } else if (handleKey === "ne") {
+        lSpan = Math.abs(handles.ne.getLatLng().lat - mPos.lat);
+        gSpan = Math.abs(handles.ne.getLatLng().lng - mPos.lng);
+      } else if (handleKey === "nw") {
+        lSpan = Math.abs(handles.nw.getLatLng().lat - mPos.lat);
+        gSpan = Math.abs(handles.nw.getLatLng().lng - mPos.lng);
+      } else if (handleKey === "se") {
+        lSpan = Math.abs(handles.se.getLatLng().lat - mPos.lat);
+        gSpan = Math.abs(handles.se.getLatLng().lng - mPos.lng);
+      } else if (handleKey === "sw") {
+        lSpan = Math.abs(handles.sw.getLatLng().lat - mPos.lat);
+        gSpan = Math.abs(handles.sw.getLatLng().lng - mPos.lng);
+      }
+
+      // Constrain spans to min/max configuration
+      lSpan = Math.max(0.015, Math.min(0.12, lSpan));
+      gSpan = Math.max(0.015, Math.min(0.12, gSpan));
+
+      rectangle.setBounds([[mPos.lat - lSpan, mPos.lng - gSpan], [mPos.lat + lSpan, mPos.lng + gSpan]]);
+      syncHandles(mPos.lat, mPos.lng, lSpan, gSpan);
+
+      latSpanRef.current = lSpan;
+      lngSpanRef.current = gSpan;
+      setLatSpan(lSpan);
+      setLngSpan(gSpan);
+    };
+
+    Object.entries(handles).forEach(([key, h]) => {
+      h.on("drag", () => onResizeDrag(key));
+      h.on("dragend", () => {
+        const mPos = marker.getLatLng();
+        if (onChangeRef.current) onChangeRef.current(mPos.lat, mPos.lng, latSpanRef.current, lngSpanRef.current);
+      });
+    });
 
     // ── Drag rectangle to MOVE entire box ──────────────────────────────
     let isDragging = false;
@@ -100,7 +179,6 @@ export default function SelectionMap({
     let dragStartCenter = null;
 
     rectangle.on("mousedown", (e) => {
-      // Stop map from receiving the event
       L.DomEvent.stopPropagation(e);
       L.DomEvent.preventDefault(e);
       isDragging = true;
@@ -112,14 +190,15 @@ export default function SelectionMap({
 
     map.on("mousemove", (e) => {
       if (!isDragging) return;
-      const s = spanRef.current;
+      const lS = latSpanRef.current;
+      const gS = lngSpanRef.current;
       const dLat = e.latlng.lat - dragStartLatLng.lat;
       const dLng = e.latlng.lng - dragStartLatLng.lng;
       const newLat = dragStartCenter.lat + dLat;
       const newLng = dragStartCenter.lng + dLng;
       marker.setLatLng([newLat, newLng]);
-      rectangle.setBounds([[newLat - s, newLng - s], [newLat + s, newLng + s]]);
-      cornerMarker.setLatLng([newLat - s, newLng + s]);
+      rectangle.setBounds([[newLat - lS, newLng - gS], [newLat + lS, newLng + gS]]);
+      syncHandles(newLat, newLng, lS, gS);
     });
 
     map.on("mouseup", () => {
@@ -128,7 +207,7 @@ export default function SelectionMap({
       map.dragging.enable();
       map.getContainer().style.cursor = "";
       const pos = marker.getLatLng();
-      if (onChangeRef.current) onChangeRef.current(pos.lat, pos.lng, spanRef.current);
+      if (onChangeRef.current) onChangeRef.current(pos.lat, pos.lng, latSpanRef.current, lngSpanRef.current);
     });
 
     rectangle.on("mouseover", () => { if (!isDragging) map.getContainer().style.cursor = "grab"; });
@@ -137,81 +216,59 @@ export default function SelectionMap({
     // ── Center marker drag → moves box ─────────────────────────────────
     marker.on("drag", () => {
       const pos = marker.getLatLng();
-      const s = spanRef.current;
-      rectangle.setBounds([[pos.lat - s, pos.lng - s], [pos.lat + s, pos.lng + s]]);
-      cornerMarker.setLatLng([pos.lat - s, pos.lng + s]);
+      const lS = latSpanRef.current;
+      const gS = lngSpanRef.current;
+      rectangle.setBounds([[pos.lat - lS, pos.lng - gS], [pos.lat + lS, pos.lng + gS]]);
+      syncHandles(pos.lat, pos.lng, lS, gS);
     });
-
-    marker.on("dragend", () => {
-      const pos = marker.getLatLng();
-      if (onChangeRef.current) onChangeRef.current(pos.lat, pos.lng, spanRef.current);
-    });
-
-    // ── Corner marker drag → resizes box ────────────────────────────────
-    cornerMarker.on("drag", () => {
-      const cPos = cornerMarker.getLatLng();
-      const mPos = marker.getLatLng();
-      const newSpan = Math.max(0.015, Math.min(0.12, Math.max(
-        Math.abs(cPos.lat - mPos.lat),
-        Math.abs(cPos.lng - mPos.lng)
-      )));
-      cornerMarker.setLatLng([mPos.lat - newSpan, mPos.lng + newSpan]);
-      rectangle.setBounds([[mPos.lat - newSpan, mPos.lng - newSpan], [mPos.lat + newSpan, mPos.lng + newSpan]]);
-      spanRef.current = newSpan;
-      setCurrentSpan(newSpan);
-    });
-
-    cornerMarker.on("dragend", () => {
-      const mPos = marker.getLatLng();
-      const s = spanRef.current;
-      if (onChangeRef.current) onChangeRef.current(mPos.lat, mPos.lng, s);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run only ONCE on mount
-
-  // ── Respond to external centerLat/centerLon changes (Quick Jump) ────────
+  }, []);
   useEffect(() => {
     if (!leafletMap.current || !markerRef.current) return;
     const pos = markerRef.current.getLatLng();
     if (Math.abs(pos.lat - centerLat) > 0.001 || Math.abs(pos.lng - centerLon) > 0.001) {
-      const s = spanRef.current;
+      const lS = latSpanRef.current;
+      const gS = lngSpanRef.current;
       markerRef.current.setLatLng([centerLat, centerLon]);
       leafletMap.current.setView([centerLat, centerLon], 12);
-      updateRectangle(centerLat, centerLon, s);
-      if (cornerMarkerRef.current) {
-        cornerMarkerRef.current.setLatLng([centerLat - s, centerLon + s]);
-      }
+      updateRectangle(centerLat, centerLon, lS, gS);
+      // Re-trigger sync handles globally to position border boxes
+      const syncFunc = leafletMap.current.syncHandlesGlobal;
+      if (syncFunc) syncFunc(centerLat, centerLon, lS, gS);
     }
   }, [centerLat, centerLon]);
 
-  // ── Respond to external span changes (slider in parent) ─────────────────
+  // ── Respond to external span changes (slider) ───────────────────────────
   useEffect(() => {
     if (!leafletMap.current || !markerRef.current) return;
-    spanRef.current = span;
-    setCurrentSpan(span);
-    const pos = markerRef.current.getLatLng();
-    updateRectangle(pos.lat, pos.lng, span);
-    if (cornerMarkerRef.current) {
-      cornerMarkerRef.current.setLatLng([pos.lat - span, pos.lng + span]);
+    const currentAvg = (latSpanRef.current + lngSpanRef.current) / 2.0;
+    // Only override if the external span value represents a jump or reset
+    if (Math.abs(span - currentAvg) > 0.0001) {
+      latSpanRef.current = span;
+      lngSpanRef.current = span;
+      setLatSpan(span);
+      setLngSpan(span);
+      const pos = markerRef.current.getLatLng();
+      updateRectangle(pos.lat, pos.lng, span, span);
+      const syncFunc = leafletMap.current.syncHandlesGlobal;
+      if (syncFunc) syncFunc(pos.lat, pos.lng, span, span);
     }
   }, [span]);
 
-  // ── Slider ───────────────────────────────────────────────────────────────
+  // ── Slider change handler ───────────────────────────────────────────────
   const handleSliderChange = (e) => {
     const newSpan = parseFloat(e.target.value);
-    spanRef.current = newSpan;
-    setCurrentSpan(newSpan);
+    latSpanRef.current = newSpan;
+    lngSpanRef.current = newSpan;
+    setLatSpan(newSpan);
+    setLngSpan(newSpan);
     if (markerRef.current) {
       const pos = markerRef.current.getLatLng();
-      updateRectangle(pos.lat, pos.lng, newSpan);
-      if (cornerMarkerRef.current) {
-        cornerMarkerRef.current.setLatLng([pos.lat - newSpan, pos.lng + newSpan]);
-      }
-      if (onChangeRef.current) onChangeRef.current(pos.lat, pos.lng, newSpan);
+      updateRectangle(pos.lat, pos.lng, newSpan, newSpan);
+      if (onChangeRef.current) onChangeRef.current(pos.lat, pos.lng, newSpan, newSpan);
     }
   };
 
-  // ── Search ───────────────────────────────────────────────────────────────
+  // ── Search handler ──────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
 
@@ -225,14 +282,14 @@ export default function SelectionMap({
       if (data && data.length > 0) {
         const lat = parseFloat(data[0].lat);
         const lon = parseFloat(data[0].lon);
-        const s = spanRef.current;
+        const lS = latSpanRef.current;
+        const gS = lngSpanRef.current;
         leafletMap.current.setView([lat, lon], 12);
         markerRef.current.setLatLng([lat, lon]);
-        updateRectangle(lat, lon, s);
-        if (cornerMarkerRef.current) cornerMarkerRef.current.setLatLng([lat - s, lon + s]);
-        if (onChangeRef.current) onChangeRef.current(lat, lon, s);
+        updateRectangle(lat, lon, lS, gS);
+        if (onChangeRef.current) onChangeRef.current(lat, lon, lS, gS);
       } else {
-        alert("Location not found. Please try a different query.");
+        alert("Location not found.");
       }
     } catch (err) {
       console.error("Search failed:", err);

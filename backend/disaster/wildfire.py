@@ -1,6 +1,7 @@
 import math
 import random
 import networkx as nx
+from backend.world_model.graph_builder import haversine_distance
 
 class WildfireModule(object):
     def __init__(self, wind_speed_ms: float = 8.0, wind_direction_deg: float = 225.0, moisture_content: float = 0.15):
@@ -57,7 +58,6 @@ class WildfireModule(object):
 
     def update_simulation_step(self, graph: nx.Graph, step: int) -> list:
         newly_blocked_edges = []
-        random.seed(step)
         
         # 1. Initialize ignition point if not set
         if self.ignition_lat is None or self.ignition_lon is None:
@@ -78,9 +78,8 @@ class WildfireModule(object):
                 graph.nodes[highest_fuel_node]['fire_intensity'] = 100.0
 
         # Calculate wind angle components for directional bias (in radians)
-        # Using standard meteorological wind coordinates matching standard vectors (0 deg is North, 90 deg is East)
         wind_rad = math.radians(self.wind_direction_deg)
-        wind_vector = (math.sin(wind_rad), math.cos(wind_rad))
+        wind_vector = (-math.sin(wind_rad), -math.cos(wind_rad))
  
         # 2. Propagate active fire front to adjacent nodes
         active_fires = [n_id for n_id, data in graph.nodes(data=True) if data.get('status') == 'FIRE']
@@ -91,10 +90,24 @@ class WildfireModule(object):
             fuel_u = graph.nodes[fire_node].get('fuel_load', 0.05)
             slope_u = graph.nodes[fire_node].get('slope', 0.0)
             
-            # Rate of spread scales with slope percentage (slope in radians/degrees * 100)
+            # Fuel burn down over time
+            current_fuel = graph.nodes[fire_node].get('fuel_load', 0.05)
+            graph.nodes[fire_node]['fuel_load'] = max(0.0, current_fuel - 0.05)
+            if graph.nodes[fire_node]['fuel_load'] <= 0.0:
+                # Fire burned out
+                graph.nodes[fire_node]['status'] = "SAFE"
+                graph.nodes[fire_node]['p_danger'] = 0.2
+                graph.nodes[fire_node]['fire_intensity'] = 0.0
+                for edge_node in list(graph.neighbors(fire_node)):
+                    if graph.has_edge(fire_node, edge_node):
+                        graph.edges[fire_node, edge_node]['blocked'] = False
+                        graph.edges[fire_node, edge_node]['confidence'] = 1.0
+                continue
+            
+            # Rate of spread scales with slope percentage
             ros = self.get_rate_of_spread(fuel_u, slope_pct=slope_u * 100.0)
-            # Map step size to minutes (step is 10 minutes of active time)
-            spread_dist_m = ros * 10.0
+            # Map step size to minutes (1 minute timestep)
+            spread_dist_m = ros * 1.0
             
             for neighbor in list(graph.neighbors(fire_node)):
                 neigh_data = graph.nodes[neighbor]
@@ -121,7 +134,6 @@ class WildfireModule(object):
                 
                 effective_spread_dist = spread_dist_m * wind_bias
                 # Calculate accurate physical distance using haversine metric (unit: meters)
-                from backend.world_model.graph_builder import haversine_distance
                 actual_dist_m = haversine_distance(lat_u, lon_u, lat_v, lon_v) * 1000.0
                 
                 # Probability of ignition decays with distance

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 # Default database path — same as sentinel.db
@@ -121,7 +121,7 @@ class TerrainCache:
         """
         if not records:
             return
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         sql = """
         INSERT OR REPLACE INTO terrain_cache
             (node_id, lat, lon, elevation, slope, aspect, twi, terrain_class, source, fetched_at)

@@ -73,6 +73,9 @@ def designate_node(config: DesignateNodeSchema):
             world_state.ground_truth.nodes[config.node_id]['p_danger'] = 0.0
             world_state.ground_truth.nodes[config.node_id]['p_state_correct'] = 1.0
 
+        if hasattr(world_state, '_node_names_cache'):
+            world_state._node_names_cache.pop(config.node_id, None)
+
         world_state.sync_to_db()
         
         return {"status": "Success", "node_id": config.node_id, "node_type": config.node_type}

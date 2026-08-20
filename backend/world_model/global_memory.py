@@ -141,28 +141,35 @@ class GlobalMemoryMatrix:
             return dist_matrix_cpu, predecessors_cpu
 
     def log_clearance(self, node_id: str) -> None:
-        self.clearance_ledger.add(node_id)
+        with self._lock:
+            self.clearance_ledger.add(node_id)
 
     def is_cleared(self, node_id: str) -> bool:
-        return node_id in self.clearance_ledger
+        with self._lock:
+            return node_id in self.clearance_ledger
 
     def allocate_capacity(self, target_id: str, capacity: int) -> None:
-        self.inbound_capacity[target_id] = self.inbound_capacity.get(target_id, 0) + capacity
+        with self._lock:
+            self.inbound_capacity[target_id] = self.inbound_capacity.get(target_id, 0) + capacity
 
     def get_remaining_demand(self, target_id: str, population: int) -> int:
-        return max(0, population - self.inbound_capacity.get(target_id, 0))
+        with self._lock:
+            return max(0, population - self.inbound_capacity.get(target_id, 0))
 
     def free_capacity(self, target_id: str, capacity: int) -> None:
-        if target_id in self.inbound_capacity:
-            self.inbound_capacity[target_id] = max(0, self.inbound_capacity[target_id] - capacity)
+        with self._lock:
+            if target_id in self.inbound_capacity:
+                self.inbound_capacity[target_id] = max(0, self.inbound_capacity[target_id] - capacity)
 
     def log_weather(self, weather_data: Dict[str, Any]) -> None:
         if weather_data:
-            self.weather_chronicle.append(weather_data)
+            with self._lock:
+                self.weather_chronicle.append(weather_data)
 
     def reset_matrix(self) -> None:
         """Purges memory for a fresh map load"""
-        self._initialize()
+        with self._lock:
+            self._initialize()
 
 # Singleton instance
 gmm: GlobalMemoryMatrix = GlobalMemoryMatrix()

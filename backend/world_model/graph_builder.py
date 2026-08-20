@@ -3,7 +3,7 @@ import os
 import urllib.request
 import xml.etree.ElementTree as ET
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Tuple, Dict, Optional, Any, Set
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -67,28 +67,31 @@ def generate_noise(lat: float, lon: float, scale: float = 100.0) -> float:
     val = math.sin(lat * scale) * math.cos(lon * scale) + math.sin(lon * scale / 2.0)
     return (val + 2.0) / 4.0  # normalize to [0, 1]
 
-def build_synthetic_graph(center_lat: float = LAT_CENTER, center_lon: float = LON_CENTER) -> Tuple[List[NodeModel], List[EdgeModel]]:
+def build_synthetic_graph(center_lat: float = LAT_CENTER, center_lon: float = LON_CENTER, lat_span: Optional[float] = None, lon_span: Optional[float] = None) -> Tuple[List[NodeModel], List[EdgeModel]]:
     """Generates a synthetic grid representing a real-world urban layout for testing/reproducibility."""
+    l_span = lat_span if lat_span is not None else settings.GRID_SIZE_LAT / 2.0
+    g_span = lon_span if lon_span is not None else settings.GRID_SIZE_LON / 2.0
+
     global RIVER_LINE, FAULT_LINE
-    RIVER_LINE[0][0] = center_lat - 0.015
-    RIVER_LINE[0][1] = center_lon - 0.015
-    RIVER_LINE[1][0] = center_lat + 0.015
-    RIVER_LINE[1][1] = center_lon + 0.015
+    RIVER_LINE[0][0] = center_lat - l_span / 2.0
+    RIVER_LINE[0][1] = center_lon - g_span / 2.0
+    RIVER_LINE[1][0] = center_lat + l_span / 2.0
+    RIVER_LINE[1][1] = center_lon + g_span / 2.0
     
     FAULT_LINE[0][0] = center_lat
-    FAULT_LINE[0][1] = center_lon - 0.015
+    FAULT_LINE[0][1] = center_lon - g_span / 2.0
     FAULT_LINE[1][0] = center_lat
-    FAULT_LINE[1][1] = center_lon + 0.015
+    FAULT_LINE[1][1] = center_lon + g_span / 2.0
 
     nodes = []
     edges = []
     
     grid_rows, grid_cols = 6, 6
-    lat_step = settings.GRID_SIZE_LAT / (grid_rows - 1)
-    lon_step = settings.GRID_SIZE_LON / (grid_cols - 1)
+    lat_step = (l_span * 2.0) / (grid_rows - 1)
+    lon_step = (g_span * 2.0) / (grid_cols - 1)
     
-    lat_min = center_lat - settings.GRID_SIZE_LAT / 2.0
-    lon_min = center_lon - settings.GRID_SIZE_LON / 2.0
+    lat_min = center_lat - l_span
+    lon_min = center_lon - g_span
     
     # 1. Create nodes in grid
     for r in range(grid_rows):
@@ -144,7 +147,7 @@ def build_synthetic_graph(center_lat: float = LAT_CENTER, center_lon: float = LO
                 p_danger=0.0,
                 p_state_correct=1.0,
                 status="SAFE",
-                last_observed=datetime.utcnow()
+                last_observed=datetime.now(timezone.utc)
             )
             nodes.append(node)
             
@@ -173,7 +176,7 @@ def build_synthetic_graph(center_lat: float = LAT_CENTER, center_lon: float = LO
                     confidence=1.0,
                     blocked=False,
                     speed_factor=speed_factor,
-                    last_observed=datetime.utcnow(),
+                    last_observed=datetime.now(timezone.utc),
                     name=f"Avenue {r+1}"
                 )
                 edges.append(edge)
@@ -200,7 +203,7 @@ def build_synthetic_graph(center_lat: float = LAT_CENTER, center_lon: float = LO
                     confidence=1.0,
                     blocked=False,
                     speed_factor=speed_factor,
-                    last_observed=datetime.utcnow(),
+                    last_observed=datetime.now(timezone.utc),
                     name=f"Street {chr(65 + c)}"
                 )
                 edges.append(edge)
@@ -360,7 +363,7 @@ def load_osm_xml(file_path: str) -> Tuple[List[NodeModel], List[EdgeModel]]:
             p_danger=0.0,
             p_state_correct=1.0,
             status="SAFE",
-            last_observed=datetime.utcnow()
+            last_observed=datetime.now(timezone.utc)
         )
         node.is_bridge = is_bridge_flag
         # Calculate proximity distances (meters)
@@ -447,7 +450,7 @@ def load_osm_xml(file_path: str) -> Tuple[List[NodeModel], List[EdgeModel]]:
                     confidence=1.0,
                     blocked=False,
                     speed_factor=speed_factor,
-                    last_observed=datetime.utcnow(),
+                    last_observed=datetime.now(timezone.utc),
                     name=way_name_raw
                 )
                 edge.is_highway = is_highway
@@ -505,6 +508,16 @@ def load_osm_xml(file_path: str) -> Tuple[List[NodeModel], List[EdgeModel]]:
     for n_id, node in nodes_map.items():
         if node.node_type in ("HOSPITAL", "SHELTER", "POPULATION_ZONE"):
             nodes_to_keep.add(n_id)
+            # Set haven capacity — treat as staging areas, not fixed containers
+            # Capacity resets every 30 steps as civilians move onward (staging model)
+            if node.node_type == "SHELTER":
+                setattr(node, "capacity", 8000)
+                setattr(node, "occupants", 0)
+                setattr(node, "is_staging", True)
+            elif node.node_type == "HOSPITAL":
+                setattr(node, "capacity", 4000)
+                setattr(node, "occupants", 0)
+                setattr(node, "is_staging", True)
 
     deg2_nodes = [n for n in g_sub.nodes() if g_sub.degree(n) == 2 and n not in nodes_to_keep]
     visited = set()
@@ -629,7 +642,7 @@ def load_osm_xml(file_path: str) -> Tuple[List[NodeModel], List[EdgeModel]]:
                 confidence=1.0,
                 blocked=False,
                 speed_factor=avg_speed,
-                last_observed=datetime.utcnow(),
+                last_observed=datetime.now(timezone.utc),
                 name=simp_name
             )
             simplified_edge.is_coastal = is_coastal
@@ -732,12 +745,14 @@ def load_osm_xml(file_path: str) -> Tuple[List[NodeModel], List[EdgeModel]]:
     return nodes, edges
 
 
-def download_osm_data(lat: float, lon: float, filepath: str, span: float = 0.006) -> None:
+def download_osm_data(lat: float, lon: float, filepath: str, span: float = 0.006, lat_span: Optional[float] = None, lon_span: Optional[float] = None) -> None:
     """Downloads a targeted slice of OSM road network XML centered at (lat, lon) using Overpass QL."""
-    left = lon - span
-    bottom = lat - span
-    right = lon + span
-    top = lat + span
+    l_span = lat_span if lat_span is not None else span
+    g_span = lon_span if lon_span is not None else span
+    left = lon - g_span
+    bottom = lat - l_span
+    right = lon + g_span
+    top = lat + l_span
     
     # Target highways, hospitals, and shelters (remove massive water and building layers to ensure fast, reliable downloads)
     ql_query = f"""[out:xml][timeout:180];
@@ -779,8 +794,8 @@ out body;"""
         )
         
         try:
-            # 180-second timeout for large city-scale OSM downloads
-            with urllib.request.urlopen(req, timeout=180) as response, open(filepath, 'wb') as out_file:
+            # 10-second timeout per endpoint for fast fallback if Overpass is busy
+            with urllib.request.urlopen(req, timeout=10) as response, open(filepath, 'wb') as out_file:
                 out_file.write(response.read())
             print(f"OSM road data successfully cached at {filepath}")
             return  # Success!

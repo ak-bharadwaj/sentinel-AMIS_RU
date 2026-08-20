@@ -1,0 +1,1143 @@
+{
+  "summary_by_metric": {
+    "rescue_rate_pct": {
+      "constant_cells_count": 0,
+      "varying_cells_count": 12,
+      "classification": "STOCHASTIC (Varies across seeds)"
+    },
+    "vehicle_stall_events": {
+      "constant_cells_count": 11,
+      "varying_cells_count": 1,
+      "classification": "STOCHASTIC (Varies across seeds)"
+    },
+    "time_to_first_rescue_min": {
+      "constant_cells_count": 11,
+      "varying_cells_count": 1,
+      "classification": "STOCHASTIC (Varies across seeds)"
+    },
+    "trips_completed": {
+      "constant_cells_count": 11,
+      "varying_cells_count": 1,
+      "classification": "STOCHASTIC (Varies across seeds)"
+    },
+    "total_distance_km": {
+      "constant_cells_count": 11,
+      "varying_cells_count": 1,
+      "classification": "STOCHASTIC (Varies across seeds)"
+    }
+  },
+  "cell_variance_details": {
+    "Mumbai 2005 Flood": {
+      "AMIS-RU": {
+        "rescue_rate_pct": {
+          "mean": 27.2565,
+          "std": 3.4244,
+          "variance": 11.726207,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            26.7043,
+            32.878,
+            23.959,
+            28.4251,
+            24.3137,
+            26.6978,
+            32.8852,
+            23.9799,
+            28.4097,
+            24.312
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.6,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.6,
+            0.6,
+            0.6,
+            0.6,
+            0.6,
+            0.6,
+            0.6,
+            0.6,
+            0.6,
+            0.6
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 1867.4,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4,
+            1867.4
+          ]
+        },
+        "total_distance_km": {
+          "mean": 2143.68,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68,
+            2143.68
+          ]
+        }
+      },
+      "BASELINE-A": {
+        "rescue_rate_pct": {
+          "mean": 28.3782,
+          "std": 3.955,
+          "variance": 15.642128,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            22.6192,
+            32.1555,
+            27.059,
+            32.8386,
+            27.2166,
+            22.6127,
+            32.1627,
+            27.0799,
+            32.8232,
+            27.2149
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 4.2,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            4.2,
+            4.2,
+            4.2,
+            4.2,
+            4.2,
+            4.2,
+            4.2,
+            4.2,
+            4.2,
+            4.2
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 1834.8,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8,
+            1834.8
+          ]
+        },
+        "total_distance_km": {
+          "mean": 1948.05,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05,
+            1948.05
+          ]
+        }
+      },
+      "BASELINE-B": {
+        "rescue_rate_pct": {
+          "mean": 23.3376,
+          "std": 6.6402,
+          "variance": 44.092374,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            22.6849,
+            28.2937,
+            22.6455,
+            28.5827,
+            22.6717,
+            6.2927,
+            28.3009,
+            22.6664,
+            28.5673,
+            22.67
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 108.4,
+          "std": 330.1418,
+          "variance": 108993.6,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            4.0,
+            4.0,
+            4.0,
+            4.0,
+            4.0,
+            1048.0,
+            4.0,
+            4.0,
+            4.0,
+            4.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.06,
+          "std": 0.1897,
+          "variance": 0.036,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.6,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2890.12,
+          "std": 2113.4134,
+          "variance": 4466516.224,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            2221.8,
+            2221.8,
+            2221.8,
+            2221.8,
+            2221.8,
+            8905.0,
+            2221.8,
+            2221.8,
+            2221.8,
+            2221.8
+          ]
+        },
+        "total_distance_km": {
+          "mean": 1379.835,
+          "std": 484.8246,
+          "variance": 235054.89225,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            1533.15,
+            1533.15,
+            1533.15,
+            1533.15,
+            1533.15,
+            0.0,
+            1533.15,
+            1533.15,
+            1533.15,
+            1533.15
+          ]
+        }
+      }
+    },
+    "Bhuj 2001 Earthquake": {
+      "AMIS-RU": {
+        "rescue_rate_pct": {
+          "mean": 35.2369,
+          "std": 1.4713,
+          "variance": 2.164687,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            35.9664,
+            35.0411,
+            36.8574,
+            35.6066,
+            32.7108,
+            35.9599,
+            35.0483,
+            36.8783,
+            35.5912,
+            32.7091
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 122.4,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            122.4,
+            122.4,
+            122.4,
+            122.4,
+            122.4,
+            122.4,
+            122.4,
+            122.4,
+            122.4,
+            122.4
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2080.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0,
+            2080.0
+          ]
+        },
+        "total_distance_km": {
+          "mean": 2270.32,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32,
+            2270.32
+          ]
+        }
+      },
+      "BASELINE-A": {
+        "rescue_rate_pct": {
+          "mean": 35.2437,
+          "std": 1.7145,
+          "variance": 2.939401,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            35.7779,
+            35.7094,
+            37.3029,
+            32.3509,
+            35.0754,
+            35.7714,
+            35.7166,
+            37.3238,
+            32.3355,
+            35.0737
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 668.6,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            668.6,
+            668.6,
+            668.6,
+            668.6,
+            668.6,
+            668.6,
+            668.6,
+            668.6,
+            668.6,
+            668.6
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2059.6,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6,
+            2059.6
+          ]
+        },
+        "total_distance_km": {
+          "mean": 1895.85,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85,
+            1895.85
+          ]
+        }
+      },
+      "BASELINE-B": {
+        "rescue_rate_pct": {
+          "mean": 31.3713,
+          "std": 0.287,
+          "variance": 0.082374,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            31.1515,
+            31.1515,
+            31.6998,
+            31.1515,
+            31.6998,
+            31.145,
+            31.1587,
+            31.7207,
+            31.1361,
+            31.6981
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 1515.6,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6,
+            1515.6
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2011.6,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6,
+            2011.6
+          ]
+        },
+        "total_distance_km": {
+          "mean": 1168.5,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5,
+            1168.5
+          ]
+        }
+      }
+    },
+    "Nisarga 2020 Cyclone": {
+      "AMIS-RU": {
+        "rescue_rate_pct": {
+          "mean": 46.9768,
+          "std": 1.2153,
+          "variance": 1.476988,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            45.7009,
+            46.1084,
+            48.8794,
+            47.6365,
+            46.5566,
+            45.6944,
+            46.1156,
+            48.9003,
+            47.6211,
+            46.5549
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2412.8,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8,
+            2412.8
+          ]
+        },
+        "total_distance_km": {
+          "mean": 5790.29,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29,
+            5790.29
+          ]
+        }
+      },
+      "BASELINE-A": {
+        "rescue_rate_pct": {
+          "mean": 44.1651,
+          "std": 3.7169,
+          "variance": 13.815599,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            49.4091,
+            46.5974,
+            40.709,
+            44.0505,
+            40.057,
+            49.4026,
+            46.6046,
+            40.7299,
+            44.0351,
+            40.0553
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2428.4,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4,
+            2428.4
+          ]
+        },
+        "total_distance_km": {
+          "mean": 6255.13,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13,
+            6255.13
+          ]
+        }
+      },
+      "BASELINE-B": {
+        "rescue_rate_pct": {
+          "mean": 38.6354,
+          "std": 0.5391,
+          "variance": 0.29058,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            37.8362,
+            38.6716,
+            38.5493,
+            38.6716,
+            39.4458,
+            37.8297,
+            38.6788,
+            38.5702,
+            38.6562,
+            39.4441
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2568.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0,
+            2568.0
+          ]
+        },
+        "total_distance_km": {
+          "mean": 2170.4,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4,
+            2170.4
+          ]
+        }
+      }
+    },
+    "Aarey 2018 Wildfire": {
+      "AMIS-RU": {
+        "rescue_rate_pct": {
+          "mean": 56.097,
+          "std": 4.4205,
+          "variance": 19.540951,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            56.512,
+            52.3016,
+            63.4731,
+            51.7777,
+            56.4184,
+            56.5055,
+            52.3088,
+            63.494,
+            51.7623,
+            56.4167
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2875.6,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6,
+            2875.6
+          ]
+        },
+        "total_distance_km": {
+          "mean": 5531.22,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22,
+            5531.22
+          ]
+        }
+      },
+      "BASELINE-A": {
+        "rescue_rate_pct": {
+          "mean": 55.1202,
+          "std": 3.1065,
+          "variance": 9.650353,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            58.4768,
+            51.5906,
+            58.3645,
+            55.0711,
+            52.0958,
+            58.4703,
+            51.5978,
+            58.3854,
+            55.0557,
+            52.0941
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2893.4,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4,
+            2893.4
+          ]
+        },
+        "total_distance_km": {
+          "mean": 4193.42,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42,
+            4193.42
+          ]
+        }
+      },
+      "BASELINE-B": {
+        "rescue_rate_pct": {
+          "mean": 49.5626,
+          "std": 7.7909,
+          "variance": 60.698655,
+          "is_constant_across_seeds": false,
+          "sample_values": [
+            45.8645,
+            45.8645,
+            45.8645,
+            64.3525,
+            45.8645,
+            45.858,
+            45.8717,
+            45.8854,
+            64.3371,
+            45.8628
+          ]
+        },
+        "vehicle_stall_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "time_to_first_rescue_min": {
+          "mean": 0.0,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "trips_completed": {
+          "mean": 2952.8,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8,
+            2952.8
+          ]
+        },
+        "total_distance_km": {
+          "mean": 2569.51,
+          "std": 0.0,
+          "variance": 0.0,
+          "is_constant_across_seeds": true,
+          "sample_values": [
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51,
+            2569.51
+          ]
+        }
+      }
+    }
+  }
+}

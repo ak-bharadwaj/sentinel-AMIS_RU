@@ -1,0 +1,261 @@
+{
+  "metric_name": "Time to First Successful Rescue (minutes)",
+  "computation_source": "research/run_final_historical_sweep_clean.py:L92-93, L109 (t_ffr = outer_step * 12 seconds / 60.0)",
+  "definition": "Elapsed operational simulation time (in minutes) until the first survivor is delivered to a haven node (engine.total_survivors_saved > 0).",
+  "reconciliation_note": "Batch 1 (Seeds 0-4) stored key as 'response_time_min', Batch 2 (Seeds 5-9) stored key as 'time_to_first_rescue_min'. Unifying both keys yields exact non-zero TFR values for all 12 cells.",
+  "cells": [
+    {
+      "scenario": "Mumbai 2005 Flood",
+      "model": "AMIS-RU",
+      "mean_tfr_min": 2.98,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        2.98,
+        2.98,
+        2.98,
+        2.98,
+        2.98,
+        2.98,
+        2.98,
+        2.98,
+        2.98,
+        2.98
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Mumbai 2005 Flood",
+      "model": "BASELINE-A",
+      "mean_tfr_min": 2.41,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        2.41,
+        2.41,
+        2.41,
+        2.41,
+        2.41,
+        2.41,
+        2.41,
+        2.41,
+        2.41,
+        2.41
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Mumbai 2005 Flood",
+      "model": "BASELINE-B",
+      "mean_tfr_min": 1.455,
+      "sample_sd_tfr_min": 0.3004,
+      "raw_10_values": [
+        1.55,
+        1.55,
+        1.55,
+        1.55,
+        1.55,
+        0.6,
+        1.55,
+        1.55,
+        1.55,
+        1.55
+      ],
+      "source_field_keys": [
+        "time_to_first_rescue_min",
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Bhuj 2001 Earthquake",
+      "model": "AMIS-RU",
+      "mean_tfr_min": 2.7,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.7,
+        2.7
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Bhuj 2001 Earthquake",
+      "model": "BASELINE-A",
+      "mean_tfr_min": 2.68,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        2.68,
+        2.68,
+        2.68,
+        2.68,
+        2.68,
+        2.68,
+        2.68,
+        2.68,
+        2.68,
+        2.68
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Bhuj 2001 Earthquake",
+      "model": "BASELINE-B",
+      "mean_tfr_min": 1.91,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        1.91,
+        1.91,
+        1.91,
+        1.91,
+        1.91,
+        1.91,
+        1.91,
+        1.91,
+        1.91,
+        1.91
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Nisarga 2020 Cyclone",
+      "model": "AMIS-RU",
+      "mean_tfr_min": 2.47,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        2.47,
+        2.47,
+        2.47,
+        2.47,
+        2.47,
+        2.47,
+        2.47,
+        2.47,
+        2.47,
+        2.47
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Nisarga 2020 Cyclone",
+      "model": "BASELINE-A",
+      "mean_tfr_min": 2.17,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        2.17,
+        2.17,
+        2.17,
+        2.17,
+        2.17,
+        2.17,
+        2.17,
+        2.17,
+        2.17,
+        2.17
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Nisarga 2020 Cyclone",
+      "model": "BASELINE-B",
+      "mean_tfr_min": 1.33,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        1.33,
+        1.33,
+        1.33,
+        1.33,
+        1.33,
+        1.33,
+        1.33,
+        1.33,
+        1.33,
+        1.33
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Aarey 2018 Wildfire",
+      "model": "AMIS-RU",
+      "mean_tfr_min": 1.51,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        1.51,
+        1.51,
+        1.51,
+        1.51,
+        1.51,
+        1.51,
+        1.51,
+        1.51,
+        1.51,
+        1.51
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Aarey 2018 Wildfire",
+      "model": "BASELINE-A",
+      "mean_tfr_min": 1.44,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        1.44,
+        1.44,
+        1.44,
+        1.44,
+        1.44,
+        1.44,
+        1.44,
+        1.44,
+        1.44,
+        1.44
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    },
+    {
+      "scenario": "Aarey 2018 Wildfire",
+      "model": "BASELINE-B",
+      "mean_tfr_min": 1.06,
+      "sample_sd_tfr_min": 0.0,
+      "raw_10_values": [
+        1.06,
+        1.06,
+        1.06,
+        1.06,
+        1.06,
+        1.06,
+        1.06,
+        1.06,
+        1.06,
+        1.06
+      ],
+      "source_field_keys": [
+        "response_time_min"
+      ]
+    }
+  ]
+}

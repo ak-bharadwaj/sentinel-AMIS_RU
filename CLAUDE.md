@@ -5,13 +5,13 @@ This file overrides local commands and properties for this workspace.
 ---
 
 ## 1. Global Orchestration Reference
-This workspace inherits the pluggable S-Class Orchestration engine (V6.8) from:
+This workspace inherits the pluggable S-Class Orchestration engine (V10.0) from:
 - C:/Users/dorni/.gemini/antigravity/knowledge/orchestration_master_rules.md
 
 ---
 
 ## 2. Workspace Declaration
-*   **pipeline:** sclass-v5 (V6.8)
+*   **pipeline:** sclass-v5 (V10.0)
 *   **executionMode:** Human-in-the-Loop Mode
 *   **loopMode:** Closed Loop
 

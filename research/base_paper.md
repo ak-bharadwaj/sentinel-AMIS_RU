@@ -112,17 +112,20 @@ Where:
 - $\text{confidence\_edge} = \frac{P_{state\_correct}(u) + P_{state\_correct}(w)}{2}$
 - $\text{RiskPenalty}(e) = 100 \cdot p_{danger\_edge}$
 - $\text{UncertaintyPenalty}(e) = 100 \cdot (1 - \text{confidence\_edge})$
-- If a node or edge is confirmed blocked, the cost is set to $\infty$.
+- Traversability water clearance is evaluated strictly as **water depth above road surface** ($h_{\text{above\_road}} = \max(0.0, h_{\text{node}} - \text{elevation}_{\text{node}})$). If a node or edge is confirmed blocked or depth exceeds clearance limits ($0.30\text{m}$ for standard/scout cars, $8.0\text{m}$ for high-water trucks, unconstrained $9999.0\text{m}$ for water-native Zodiac boats), the cost is set to $\infty$.
 
 This forces rescue teams to favor high-confidence, low-risk paths over potentially shorter, highly uncertain routes.
 
 ### 4.4 Greedy Expected Value Allocation (GEVA)
-For rescue assignment, we target nodes prioritizing the maximization of expected survivors. The expected population surviving at arrival time $t_{arrival}$ (incorporating travel delay and survival decay rate $\gamma = 0.005$) is:
+For rescue assignment, we target nodes prioritizing the maximization of expected survivors. The expected population surviving at arrival time $t_{arrival}$ (incorporating travel delay and survival decay rate $\gamma$) is:
 $$S_{expected}(v, t_{arrival}) = \text{Population}(v) \cdot e^{-\gamma \cdot P_{danger}(v) \cdot t_{arrival}}$$
 
 The Expected Value (EV) of assigning a rescue team to node $v$ is:
-$$EV(v) = P_{danger}(v) \cdot S_{expected}(v, t_{arrival}) \cdot \text{Reachability}(v)$$
-Where $\text{Reachability}(v) = \prod_{e \in \text{Path}} \text{confidence}(e)$ represents the joint probability of all edges along the route being traversable.
+$$EV(v) = P_{state\_correct}(v) \cdot P_{danger}(v) \cdot S_{expected}(v, t_{arrival}) \cdot \text{Reachability}(v) \cdot V_{\text{multiplier}}(v) - \text{Overlap\_Penalty}$$
+Where:
+- $V_{\text{multiplier}}(v)$ is the demographic vulnerability multiplier, computed as a weighted proportion across triage categories ($3.0 \cdot N_{\text{imm}} + 2.0 \cdot N_{\text{del}} + 1.2 \cdot N_{\text{min}} + 1.0 \cdot N_{\text{gen}}) / N_{\text{pop}}$, preventing binary trigger distortions.
+- $\text{Reachability}(v) = \prod_{e \in \text{Path}} \text{confidence}(e)$ represents the joint probability of all edges along the route being traversable.
+
 
 ---
 

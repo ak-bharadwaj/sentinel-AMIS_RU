@@ -31,6 +31,9 @@ import {
 const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
 const SelectionMap = dynamic(() => import("../components/SelectionMap"), { ssr: false });
 import AgentCard from "../components/AgentCard";
+import SituationDashboard from "../components/SituationDashboard";
+import ExplainabilityPanel from "../components/ExplainabilityPanel";
+import CounterfactualPanel from "../components/CounterfactualPanel";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -91,9 +94,6 @@ export default function Home() {
   // Controls state
   const [baselineType, setBaselineType] = useState("AMIS-RU");
   const [disasterType, setDisasterType] = useState("FLOOD");
-  if (typeof window !== "undefined") {
-    window.activeDisasterType = disasterType;
-  }
   const [nodeNames, setNodeNames] = useState({});
   const [corruptionLevel, setCorruptionLevel] = useState(0.60);
   const [selectedLocIndex, setSelectedLocIndex] = useState("0");
@@ -102,11 +102,25 @@ export default function Home() {
   const [span, setSpan] = useState(0.18);
   const [showCustomCoords, setShowCustomCoords] = useState(false);
   const [mapMode, setMapMode] = useState("REAL"); // "REAL" or "SYNTHETIC"
+  const [envMode, setEnvMode] = useState("LIVE");
+  const [historicalPreset, setHistoricalPreset] = useState("mumbai_2005");
   const [isRunning, setIsRunning] = useState(false);
   const [eventLog, setEventLog] = useState([]);
-  const [activeTab, setActiveTab] = useState("telemetry"); // "telemetry", "analytics", "experiments"
+  const [activeTab, setActiveTab] = useState("situation"); // "situation", "telemetry", "analytics", "experiments", "xai", "counterfactual"
+  const [xaiData, setXaiData] = useState(null);
+  const [isResearchMode, setIsResearchMode] = useState(false);
   const [sidebarTab, setSidebarTab] = useState("incidents"); // "incidents", "scouts", "agents"
   const [magnitudeMw, setMagnitudeMw] = useState(6.5);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.activeDisasterType = disasterType;
+    }
+    if (disasterType === "FLOOD") setHistoricalPreset("mumbai_2005");
+    else if (disasterType === "CYCLONE") setHistoricalPreset("nisarga_2020");
+    else if (disasterType === "EARTHQUAKE") setHistoricalPreset("bhuj_2001");
+    else if (disasterType === "WILDFIRE") setHistoricalPreset("aarey_2018");
+  }, [disasterType]);
   const [experimentResults, setExperimentResults] = useState([]);
   const [showGuide, setShowGuide] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -114,6 +128,10 @@ export default function Home() {
   const [committedLat, setCommittedLat] = useState(37.7749);
   const [committedLon, setCommittedLon] = useState(-122.4194);
   const [committedSpan, setCommittedSpan] = useState(0.18);
+  const [latSpan, setLatSpan] = useState(0.18);
+  const [lngSpan, setLngSpan] = useState(0.18);
+  const [committedLatSpan, setCommittedLatSpan] = useState(0.18);
+  const [committedLngSpan, setCommittedLngSpan] = useState(0.18);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployMode, setDeployMode] = useState("SHELTER");
   const [deployedUnits, setDeployedUnits] = useState({ havens: [], hospitals: [], scouts: [], rescues: [] });
@@ -123,6 +141,13 @@ export default function Home() {
   const [isSelectingRegion, setIsSelectingRegion] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState(null);
   const [telemetry, setTelemetry] = useState(null);
+  const [situationAssessment, setSituationAssessment] = useState(null);
+  const [forecasts, setForecasts] = useState({});
+  const [forecastHorizon, setForecastHorizon] = useState(0); // 0 = current, 15, 30, 60 min
+  const [rankedPortfolios, setRankedPortfolios] = useState([]);
+  const [selectedPortfolio, setSelectedPortfolio] = useState("balanced");
+  const [whatifSensitivity, setWhatifSensitivity] = useState({});
+  const [benchmarkResults, setBenchmarkResults] = useState(null);
   const [customShelters, setCustomShelters] = useState([]);  // [{lat, lon, label}]
   const [customHospitals, setCustomHospitals] = useState([]); // [{lat, lon, label}]
   const [newHavenLat, setNewHavenLat] = useState("");
@@ -148,6 +173,12 @@ export default function Home() {
   // ── Task 2: High priority warnings/emergency toasts state ──────────────
   const [toasts, setToasts] = useState([]);
   const warnedAgentsRef = useRef(new Set());
+
+  // Governance / EGL state hooks
+  const [eglStatus, setEglStatus] = useState(null);
+  const [eglAuditLogs, setEglAuditLogs] = useState([]);
+  const [selectedPolicyProfile, setSelectedPolicyProfile] = useState("BALANCED");
+  const [governanceOfficerId, setGovernanceOfficerId] = useState("");
 
   const [gpuStatus, setGpuStatus] = useState(null);
   const [isGpuWaking, setIsGpuWaking] = useState(false);
@@ -263,16 +294,28 @@ export default function Home() {
   useEffect(() => {
     let ws;
     let reconnectTimeout;
+    let heartbeatInterval;
+    let reconnectDelay = 1000; // start with 1s delay
 
     const connectWS = () => {
       setWsStatus("CONNECTING");
-      ws = new WebSocket("ws://127.0.0.1:8000/api/ws");
+      const wsHost = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : "127.0.0.1";
+      ws = new WebSocket(`ws://${wsHost}:8000/api/ws`);
 
       ws.onopen = () => {
         setWsStatus("LIVE");
+        reconnectDelay = 1000; // Reset delay on successful connection
+        
+        // Start 25s client-side heartbeat to prevent idle proxy/socket drops
+        heartbeatInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send("ping");
+          }
+        }, 25000);
       };
 
       ws.onmessage = (event) => {
+        if (event.data === "pong") return;
         try {
           const data = JSON.parse(event.data);
           if (data.status === "Success" && data.step !== undefined) {
@@ -285,7 +328,19 @@ export default function Home() {
             }));
             
             if (data.events && data.events.length > 0) {
-              setEventLog(prev => [...prev, ...data.events]);
+              setEventLog(prev => [...prev, ...data.events].slice(-500));
+            }
+            if (data.situation_assessment) {
+              setSituationAssessment(data.situation_assessment);
+            }
+            if (data.forecasts_15_30_60) {
+              setForecasts(data.forecasts_15_30_60);
+            }
+            if (data.ranked_portfolios) {
+              setRankedPortfolios(data.ranked_portfolios);
+            }
+            if (data.whatif_sensitivity) {
+              setWhatifSensitivity(data.whatif_sensitivity);
             }
             
             // Re-fetch world/agent geometries to ensure we have the exact route data
@@ -298,12 +353,18 @@ export default function Home() {
 
       ws.onclose = () => {
         setWsStatus("OFFLINE");
-        // Auto-reconnect after 3 seconds
-        reconnectTimeout = setTimeout(connectWS, 3000);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        
+        // Exponential backoff reconnect logic
+        console.log(`WebSocket closed. Retrying connection in ${reconnectDelay}ms...`);
+        reconnectTimeout = setTimeout(() => {
+          reconnectDelay = Math.min(reconnectDelay * 2, 30000); // cap backoff at 30s
+          connectWS();
+        }, reconnectDelay);
       };
 
       ws.onerror = (err) => {
-        console.error("WS Error:", err);
+        console.warn("WS connection interrupted (expected during backend restart/rebuild):", err);
         ws.close();
       };
     };
@@ -312,8 +373,13 @@ export default function Home() {
     
     return () => {
       clearInterval(runInterval.current);
-      if (ws) ws.close();
+      if (ws) {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.close();
+      }
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
     };
   }, []);
 
@@ -379,6 +445,21 @@ export default function Home() {
       
       if (results[2].status === 'fulfilled' && results[2].value) {
         setMetrics(results[2].value);
+        if (results[2].value.telemetry) {
+          setTelemetry(results[2].value.telemetry);
+        }
+        if (results[2].value.situation_assessment) {
+          setSituationAssessment(results[2].value.situation_assessment);
+        }
+        if (results[2].value.forecasts_15_30_60) {
+          setForecasts(results[2].value.forecasts_15_30_60);
+        }
+        if (results[2].value.ranked_portfolios) {
+          setRankedPortfolios(results[2].value.ranked_portfolios);
+        }
+        if (results[2].value.whatif_sensitivity) {
+          setWhatifSensitivity(results[2].value.whatif_sensitivity);
+        }
       }
 
       if (results[3].status === 'fulfilled' && results[3].value) {
@@ -393,6 +474,41 @@ export default function Home() {
       }
       
       // Event logs are dynamically synced via WebSockets, no client-side generation needed here
+
+      // Fetch XAI intelligence data
+      try {
+        const xaiRes = await fetch("http://127.0.0.1:8000/api/simulation/intelligence");
+        if (xaiRes.ok) {
+          const xaiResult = await xaiRes.json();
+          setXaiData(xaiResult);
+          if (xaiResult.situation_assessment) {
+            setSituationAssessment(xaiResult.situation_assessment);
+          }
+        }
+      } catch {
+        // XAI endpoint not yet available — silent fail
+      }
+
+      // Fetch EGL status and forensic audit logs
+      try {
+        const [eglStatusRes, eglAuditRes] = await Promise.all([
+          fetch("http://127.0.0.1:8000/api/egl/status"),
+          fetch("http://127.0.0.1:8000/api/egl/audit?limit=25")
+        ]);
+        if (eglStatusRes.ok) {
+          const statusData = await eglStatusRes.json();
+          setEglStatus(statusData);
+          if (statusData.active_profile) {
+            setSelectedPolicyProfile(statusData.active_profile);
+          }
+        }
+        if (eglAuditRes.ok) {
+          const auditData = await eglAuditRes.json();
+          setEglAuditLogs(auditData || []);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch EGL states:", err);
+      }
     } catch (e) {
       console.warn("Failed to fetch backend states:", e.message);
     }
@@ -428,6 +544,34 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Failed to resolve decision:", err);
+    }
+  };
+
+  const handleApplyPolicyProfile = async () => {
+    if (!governanceOfficerId.trim()) {
+      alert("Error: Officer Authorization ID is required to modify policy parameters.");
+      return;
+    }
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/egl/ethical-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile_name: selectedPolicyProfile,
+          officer_id: governanceOfficerId
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEventLog(prev => [...prev, `[Governance] ⚖️ Policy switch request verified. Queued profile: ${selectedPolicyProfile}.`]);
+        setGovernanceOfficerId("");
+        fetchState();
+      } else {
+        alert(`Failed to apply profile: ${data.detail || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error("Failed to set EGL profile:", err);
+      alert("Error communicating with EGL API.");
     }
   };
 
@@ -730,6 +874,8 @@ export default function Home() {
       center_lat: Number(overrideParams.customLat ?? customLat),
       center_lon: Number(overrideParams.customLon ?? customLon),
       span: Number(overrideParams.span ?? span),
+      lat_span: Number(overrideParams.latSpan ?? latSpan),
+      lon_span: Number(overrideParams.lngSpan ?? lngSpan),
       map_mode: overrideParams.mapMode ?? mapMode,
       num_scouts: Number(overrideParams.numScouts ?? numScouts),
       num_rescues: Number(overrideParams.numRescues ?? numRescues),
@@ -738,6 +884,8 @@ export default function Home() {
       num_trucks: Number(overrideParams.numTrucks ?? numTrucks),
       num_cars: Number(overrideParams.numCars ?? numCars),
       magnitude_mw: Number(overrideParams.magnitudeMw ?? magnitudeMw),
+      env_mode: overrideParams.envMode ?? envMode,
+      historical_preset: overrideParams.historicalPreset ?? historicalPreset,
       custom_shelters: customShelters,
       custom_hospitals: customHospitals
     };
@@ -962,25 +1110,14 @@ export default function Home() {
           
           {/* WebSocket Status Indicator Pill */}
           <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            fontSize: "0.58rem",
-            fontWeight: "700",
-            padding: "2px 8px",
-            borderRadius: "12px",
-            marginLeft: "12px",
-            background: wsStatus === "LIVE" ? "rgba(66,190,101,0.12)" : wsStatus === "CONNECTING" ? "rgba(241,194,27,0.12)" : "rgba(239,68,68,0.12)",
-            color: wsStatus === "LIVE" ? "#42be65" : wsStatus === "CONNECTING" ? "#f1c21b" : "#ff8389",
-            border: `1px solid ${wsStatus === "LIVE" ? "rgba(66,190,101,0.2)" : wsStatus === "CONNECTING" ? "rgba(241,194,27,0.2)" : "rgba(239,68,68,0.2)"}`
+            display: "flex", alignItems: "center", gap: "5px",
+            fontSize: "0.58rem", fontWeight: "700", padding: "2px 8px",
+            borderRadius: "12px", marginLeft: "12px",
+            background: wsStatus === "LIVE" ? "rgba(16,185,129,0.1)" : wsStatus === "CONNECTING" ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)",
+            color: wsStatus === "LIVE" ? "#10b981" : wsStatus === "CONNECTING" ? "#f59e0b" : "#ef4444",
+            border: `1px solid ${wsStatus === "LIVE" ? "rgba(16,185,129,0.25)" : wsStatus === "CONNECTING" ? "rgba(245,158,11,0.25)" : "rgba(239,68,68,0.25)"}`
           }}>
-            <span style={{
-              width: "5px",
-              height: "5px",
-              borderRadius: "50%",
-              backgroundColor: wsStatus === "LIVE" ? "#42be65" : wsStatus === "CONNECTING" ? "#f1c21b" : "#ff8389",
-              animation: wsStatus === "CONNECTING" ? "sentinel-blink 0.8s step-end infinite" : "none"
-            }} />
+            <span className={wsStatus === "LIVE" ? "ws-live-dot" : wsStatus === "CONNECTING" ? "ws-connecting-dot" : "ws-offline-dot"} />
             {wsStatus}
           </div>
         </div>
@@ -1164,17 +1301,57 @@ export default function Home() {
                     </select>
                   </div>
                   <div>
+                    <label style={{ fontSize: "0.6rem", color: "#94a3b8", display: "block", marginBottom: "4px" }}>ENVIRONMENT MODE</label>
+                    <select className="select-input-sidebar" value={envMode} onChange={e => setEnvMode(e.target.value)} style={{ width: "100%", padding: "8px 10px", fontSize: "0.75rem" }}>
+                      <option value="LIVE">🌐 Live Weather API (Real-Time)</option>
+                      <option value="HISTORICAL">📜 Simulate Historical Preset</option>
+                    </select>
+                  </div>
+                  {envMode === "HISTORICAL" && (
+                    <div>
+                      <label style={{ fontSize: "0.6rem", color: "#94a3b8", display: "block", marginBottom: "4px" }}>HISTORICAL PRESET</label>
+                      <select className="select-input-sidebar" value={historicalPreset} onChange={e => setHistoricalPreset(e.target.value)} style={{ width: "100%", padding: "8px 10px", fontSize: "0.75rem" }}>
+                        {disasterType === "FLOOD" && (
+                          <>
+                            <option value="mumbai_2005">Mumbai 2005 Super-Flood</option>
+                            <option value="mumbai_2017">Mumbai 2017 Monsoon Surge</option>
+                            <option value="mumbai_2020">Mumbai 2020 Urban Deluge</option>
+                          </>
+                        )}
+                        {disasterType === "CYCLONE" && (
+                          <>
+                            <option value="nisarga_2020">Cyclone Nisarga (2020)</option>
+                            <option value="tauktae_2021">Cyclone Tauktae (2021)</option>
+                          </>
+                        )}
+                        {disasterType === "EARTHQUAKE" && (
+                          <>
+                            <option value="bhuj_2001">Bhuj 2001 (7.7 Mw Equivalent)</option>
+                            <option value="anjar_1956">Anjar 1956 (6.1 Mw Equivalent)</option>
+                          </>
+                        )}
+                        {disasterType === "WILDFIRE" && (
+                          <>
+                            <option value="aarey_2018">Aarey Forest Fire (2018)</option>
+                            <option value="aarey_2020">Aarey Brush Fire (2020)</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                  <div>
                     <label style={{ fontSize: "0.6rem", color: "#94a3b8", display: "block", marginBottom: "4px" }}>
-                      INTENSITY MAGNITUDE ({magnitudeMw.toFixed(1)} Mw / Index)
+                      {envMode === "HISTORICAL" ? "INTENSITY MAGNITUDE (Preset Auto-configured)" : `INTENSITY MAGNITUDE (${magnitudeMw.toFixed(1)} Mw / Index)`}
                     </label>
                     <input
                       type="range"
                       min="5.0"
                       max="9.0"
                       step="0.1"
+                      disabled={envMode === "HISTORICAL"}
                       value={magnitudeMw}
                       onChange={e => setMagnitudeMw(parseFloat(e.target.value))}
-                      style={{ width: "100%", accentColor: "#6366f1" }}
+                      style={{ width: "100%", accentColor: "#6366f1", opacity: envMode === "HISTORICAL" ? 0.4 : 1.0 }}
                     />
                   </div>
                 </div>
@@ -1212,6 +1389,8 @@ export default function Home() {
                   setCommittedLat(finalLat);
                   setCommittedLon(finalLon);
                   setCommittedSpan(span);
+                  setCommittedLatSpan(latSpan);
+                  setCommittedLngSpan(lngSpan);
 
                   setIsLoading(true);
                   setLoadingCity(activeCityName);
@@ -1220,8 +1399,12 @@ export default function Home() {
                       customLat: finalLat,
                       customLon: finalLon,
                       span: span,
+                      latSpan: latSpan,
+                      lngSpan: lngSpan,
                       mapMode: mapMode,
-                      disasterType: disasterType
+                      disasterType: disasterType,
+                      envMode: envMode,
+                      historicalPreset: historicalPreset
                     });
                     setIsInitialized(true);
                   } catch (e) {
@@ -1252,11 +1435,21 @@ export default function Home() {
                   centerLat={Number(configCity.index === "custom" ? customLat : configCity.lat)}
                   centerLon={Number(configCity.index === "custom" ? customLon : configCity.lon)}
                   span={span}
+                  initialLatSpan={latSpan}
+                  initialLngSpan={lngSpan}
                   mapHeight="calc(100vh - 80px)"
-                  onChange={(lat, lon, s) => {
+                  onChange={(lat, lon, lS, gS) => {
                     setCustomLat(lat.toString());
                     setCustomLon(lon.toString());
-                    setSpan(s);
+                    if (gS !== undefined) {
+                      setLatSpan(lS);
+                      setLngSpan(gS);
+                      setSpan((lS + gS) / 2.0);
+                    } else {
+                      setLatSpan(lS);
+                      setLngSpan(lS);
+                      setSpan(lS);
+                    }
                   }}
                 />
               </div>
@@ -1396,11 +1589,21 @@ export default function Home() {
                  <SelectionMap 
                    centerLat={Number(customLat)} 
                    centerLon={Number(customLon)} 
-                   span={span} 
-                   onChange={(lat, lon, s) => {
+                   span={span}
+                   initialLatSpan={latSpan}
+                   initialLngSpan={lngSpan}
+                   onChange={(lat, lon, lS, gS) => {
                      setCustomLat(lat);
                      setCustomLon(lon);
-                     setSpan(s);
+                      if (gS !== undefined) {
+                        setLatSpan(lS);
+                        setLngSpan(gS);
+                        setSpan((lS + gS) / 2.0);
+                      } else {
+                        setLatSpan(lS);
+                        setLngSpan(lS);
+                        setSpan(lS);
+                      }
                    }}
                  />
               </div>
@@ -1703,19 +1906,145 @@ export default function Home() {
               </div>
             )}
               {telemetry && (
-                <div style={{ marginBottom: "20px", padding: "12px", background: "rgba(0,0,0,0.4)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  <h4 style={{ fontSize: "0.75rem", color: "#a1a1aa", margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.05em" }}>System Latency (ms)</h4>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Physics (Ground Truth)</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.physics_ms || 0).toFixed(2)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Belief Update</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.belief_ms || 0).toFixed(2)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Decision Engine</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.decision_ms || 0).toFixed(2)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Resource Allocation</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.allocation_ms || 0).toFixed(2)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Routing Engine</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.routing_ms || 0).toFixed(2)}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "4px", marginTop: "4px" }}>
-                      <span style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold" }}>Total Tick Latency</span>
-                      <span style={{ fontSize: "0.75rem", color: "#eab308", fontFamily: "var(--font-mono)", fontWeight: "bold" }}>
-                        {((telemetry.physics_ms || 0) + (telemetry.belief_ms || 0) + (telemetry.decision_ms || 0) + (telemetry.allocation_ms || 0) + (telemetry.routing_ms || 0)).toFixed(2)}
-                      </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                  {/* Live Environment & Telemetry Widget */}
+                  <div style={{ padding: "12px", background: "rgba(15, 23, 42, 0.6)", borderRadius: "8px", border: "1px solid rgba(56, 189, 248, 0.2)", backdropFilter: "blur(8px)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "6px", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "0.7rem", color: "#38bdf8", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em" }}>📡 Live Environment Telemetry</span>
+                      <span style={{ fontSize: "0.6rem", background: "rgba(16,185,129,0.15)", color: "#10b981", padding: "2px 4px", borderRadius: "3px", fontFamily: "var(--font-mono)" }}>1s SENSOR REFRESH</span>
+                    </div>
+
+                    {/* Situation Assessment metrics */}
+                    {situationAssessment && (
+                      <div style={{ marginBottom: "10px", padding: "8px", background: "rgba(255,255,255,0.03)", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "0.65rem", color: "#a1a1aa", fontWeight: "bold" }}>SITUATION SEVERITY:</span>
+                          <span style={{ fontSize: "0.8rem", color: situationAssessment.severity_index > 0.7 ? "#ef4444" : situationAssessment.severity_index > 0.4 ? "#f59e0b" : "#10b981", fontWeight: "bold", fontFamily: "var(--font-mono)" }}>
+                            {(situationAssessment.severity_index * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "0.65rem", color: "#71717a" }}>
+                          <div>Med Demand: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(situationAssessment.active_demands?.medical || 0).toFixed(1)}</span></div>
+                          <div>Evac Demand: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(situationAssessment.active_demands?.evacuation || 0).toFixed(1)}</span></div>
+                          <div>Scout Demand: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(situationAssessment.active_demands?.scouting || 0).toFixed(2)}</span></div>
+                          <div>Impacted Pop: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(situationAssessment.damage_ratios?.affected_population * 100 || 0).toFixed(0)}%</span></div>
+                        </div>
+                        <div style={{ borderTop: "1px dashed rgba(255,255,255,0.06)", marginTop: "6px", paddingTop: "6px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "0.6rem", color: "#71717a" }}>
+                          <div>Stability Index: <span style={{ color: "#22c55e", fontWeight: "bold", fontFamily: "var(--font-mono)" }}>{(situationAssessment.decision_stability_index || 100).toFixed(0)}%</span></div>
+                          <div>Comms Index: <span style={{ color: "#60a5fa", fontFamily: "var(--font-mono)" }}>{(situationAssessment.communication_coverage_index || 100).toFixed(0)}%</span></div>
+                        </div>
+                        
+                        {/* Benchmarking utility triggers */}
+                        <div style={{ marginTop: "8px", borderTop: "1px dashed rgba(255,255,255,0.06)", paddingTop: "6px" }}>
+                          <button
+                            onClick={async () => {
+                              setIsLoading(true);
+                              try {
+                                const response = await fetch("http://127.0.0.1:8000/api/simulation/benchmark");
+                                const bdata = await response.json();
+                                setBenchmarkResults(bdata);
+                                setEventLog(prev => [...prev, "[Benchmark] Runs completed. Baseline comparative indexes loaded."]);
+                              } catch (e) {
+                                console.error("Benchmark error:", e);
+                              }
+                              setIsLoading(false);
+                            }}
+                            className="btn"
+                            style={{ width: "100%", padding: "4px 8px", fontSize: "0.6rem", height: "auto", background: "rgba(147,51,234,0.18)", border: "1px solid rgba(147,51,234,0.4)", borderRadius: "4px", color: "#d8b4fe", cursor: "pointer", fontWeight: "bold" }}
+                          >
+                            🚀 RUN SCENARIO BENCHMARK
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dynamic weather indicators */}
+                    {telemetry.weather && telemetry.weather.simulated && (
+                      <div style={{ padding: "6px 8px", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "4px", fontSize: "0.68rem", color: "#a5b4fc", marginBottom: "8px", fontWeight: "bold", letterSpacing: "0.5px" }}>
+                        📜 BENCHMARK: {telemetry.weather.preset_name}
+                      </div>
+                    )}
+                    {telemetry.weather && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", fontSize: "0.7rem", color: "#a1a1aa", marginBottom: "6px" }}>
+                        <div>Temp: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.weather.temperature_c || 24.5).toFixed(1)}°C</span></div>
+                        <div>Humidity: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.weather.humidity_pct || 65).toFixed(0)}%</span></div>
+                        <div>Wind: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.weather.wind_speed_kmh || 0).toFixed(1)} km/h</span></div>
+                        <div>Rain: <span style={{ color: "#60a5fa", fontWeight: "bold", fontFamily: "var(--font-mono)" }}>{(telemetry.weather.rainfall_mm_hr || 0).toFixed(1)} mm/h</span></div>
+                      </div>
+                    )}
+
+                    {/* Hydrology details */}
+                    {telemetry.hydrology && (telemetry.hydrology.water_depth_m > 0 || disasterType === "FLOOD") && (
+                      <div style={{ marginTop: "8px", padding: "8px", background: "rgba(30,58,138,0.2)", borderRadius: "6px", border: "1px solid rgba(59,130,246,0.3)" }}>
+                        <div style={{ fontSize: "0.65rem", color: "#60a5fa", fontWeight: "bold", textTransform: "uppercase", marginBottom: "4px" }}>Hydrology Sensors</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "0.7rem" }}>
+                          <div style={{ color: "#93c5fd" }}>Water Depth: <span style={{ color: "#fff", fontFamily: "var(--font-mono)", fontWeight: "bold" }}>{(telemetry.hydrology.water_depth_m || 0).toFixed(2)}m</span></div>
+                          <div style={{ color: "#93c5fd" }}>Rise Rate: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.hydrology.water_rise_cm_min || 0).toFixed(2)} cm/min</span></div>
+                          <div style={{ color: "#93c5fd" }}>Flooded Roads: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{telemetry.hydrology.flooded_roads || 0}</span></div>
+                          <div style={{ color: "#93c5fd" }}>Tide State: <span style={{ color: "#eab308", fontWeight: "bold" }}>{telemetry.hydrology.tide_state || "LOW TIDE"}</span></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Cyclone details */}
+                    {telemetry.cyclone && (telemetry.cyclone.wind_gust_kmh > 0 || disasterType === "CYCLONE") && (
+                      <div style={{ marginTop: "8px", padding: "8px", background: "rgba(88,28,135,0.2)", borderRadius: "6px", border: "1px solid rgba(139,92,246,0.3)" }}>
+                        <div style={{ fontSize: "0.65rem", color: "#c084fc", fontWeight: "bold", textTransform: "uppercase", marginBottom: "4px" }}>Storm Surge & Cyclone Sensors</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "0.7rem" }}>
+                          <div style={{ color: "#d8b4fe" }}>Wind Gust: <span style={{ color: "#fff", fontFamily: "var(--font-mono)", fontWeight: "bold" }}>{(telemetry.cyclone.wind_gust_kmh || 0).toFixed(1)} km/h</span></div>
+                          <div style={{ color: "#d8b4fe" }}>Surge Height: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.cyclone.storm_surge_m || 0).toFixed(2)}m</span></div>
+                          <div style={{ color: "#d8b4fe" }}>Eye Distance: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.cyclone.eye_distance_km || 0).toFixed(1)} km</span></div>
+                          <div style={{ color: "#d8b4fe" }}>Damage Index: <span style={{ color: "#ef4444", fontWeight: "bold" }}>{(telemetry.cyclone.damage_index || 0).toFixed(0)}%</span></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Seismic details */}
+                    {telemetry.seismic && (telemetry.seismic.pga_g > 0 || disasterType === "EARTHQUAKE") && (
+                      <div style={{ marginTop: "8px", padding: "8px", background: "rgba(120,53,4,0.2)", borderRadius: "6px", border: "1px solid rgba(245,158,11,0.3)" }}>
+                        <div style={{ fontSize: "0.65rem", color: "#fcd34d", fontWeight: "bold", textTransform: "uppercase", marginBottom: "4px" }}>Seismic Aftershock Sensors</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "0.7rem" }}>
+                          <div style={{ color: "#fde047" }}>PGA: <span style={{ color: "#fff", fontFamily: "var(--font-mono)", fontWeight: "bold" }}>{(telemetry.seismic.pga_g || 0).toFixed(3)}g</span></div>
+                          <div style={{ color: "#fde047" }}>MMI: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.seismic.mmi || 1.0).toFixed(1)}</span></div>
+                          <div style={{ color: "#fde047" }}>Probability: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.seismic.aftershock_probability || 0).toFixed(0)}%</span></div>
+                          <div style={{ color: "#fde047" }}>Decay Rate: <span style={{ color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.seismic.aftershock_decay || 0).toFixed(2)}</span></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Infrastructure health metrics */}
+                    {telemetry.infrastructure && (
+                      <div style={{ marginTop: "8px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "6px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", fontSize: "0.65rem", color: "#a1a1aa" }}>
+                        <div>Closed Roads: <span style={{ color: "#f87171", fontFamily: "var(--font-mono)" }}>{telemetry.infrastructure.roads_blocked || 0}</span></div>
+                        <div>Bridges Out: <span style={{ color: "#f87171", fontFamily: "var(--font-mono)" }}>{telemetry.infrastructure.bridges_damaged || 0}</span></div>
+                        <div>Hosp Capacity: <span style={{ color: "#10b981", fontFamily: "var(--font-mono)" }}>{(telemetry.infrastructure.hospital_capacity * 100 || 100).toFixed(0)}%</span></div>
+                        <div>Shelters Active: <span style={{ color: "#10b981", fontFamily: "var(--font-mono)" }}>{telemetry.infrastructure.available_shelters || 0}</span></div>
+                      </div>
+                    )}
+
+                    {/* Belief & uncertainty quality */}
+                    {telemetry.belief && (
+                      <div style={{ marginTop: "8px", padding: "6px", background: "rgba(255,255,255,0.03)", borderRadius: "4px", display: "flex", justifyContent: "space-between", fontSize: "0.65rem", flexWrap: "wrap", gap: "4px" }}>
+                        <div style={{ color: "#a1a1aa" }}>Belief Quality: <span style={{ color: telemetry.belief.belief_quality > 80 ? "#10b981" : telemetry.belief.belief_quality > 50 ? "#eab308" : "#ef4444", fontWeight: "bold" }}>{(telemetry.belief.belief_quality || 100).toFixed(0)}%</span></div>
+                        <div style={{ color: "#a1a1aa" }}>Comms Health: <span style={{ color: "#38bdf8", fontWeight: "bold" }}>{(telemetry.belief.communication_health || 100).toFixed(0)}%</span></div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: "12px", background: "rgba(0,0,0,0.4)", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+                    <h4 style={{ fontSize: "0.75rem", color: "#a1a1aa", margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.05em" }}>System Latency (ms)</h4>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Physics (Ground Truth)</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.physics_ms || 0).toFixed(2)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Belief Update</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.belief_ms || 0).toFixed(2)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Decision Engine</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.decision_ms || 0).toFixed(2)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Resource Allocation</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.allocation_ms || 0).toFixed(2)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "0.75rem", color: "#64748b" }}>Routing Engine</span><span style={{ fontSize: "0.75rem", color: "#fff", fontFamily: "var(--font-mono)" }}>{(telemetry.routing_ms || 0).toFixed(2)}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "4px", marginTop: "4px" }}>
+                        <span style={{ fontSize: "0.75rem", color: "#eab308", fontWeight: "bold" }}>Total Tick Latency</span>
+                        <span style={{ fontSize: "0.75rem", color: "#eab308", fontFamily: "var(--font-mono)", fontWeight: "bold" }}>
+                          {((telemetry.physics_ms || 0) + (telemetry.belief_ms || 0) + (telemetry.decision_ms || 0) + (telemetry.allocation_ms || 0) + (telemetry.routing_ms || 0)).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2373,11 +2702,23 @@ export default function Home() {
             onMapClick={handleMapClick}
             deploymentMarkers={deployedUnits}
             span={committedSpan}
+            latSpan={committedLatSpan}
+            lngSpan={committedLngSpan}
             activeDisasterType={disasterType}
-            onChangeRegion={(lat, lon, newSpan) => {
+            forecastHorizon={forecastHorizon}
+            forecasts={forecasts}
+            onChangeRegion={(lat, lon, lS, gS) => {
               setCustomLat(lat.toString());
               setCustomLon(lon.toString());
-              setSpan(newSpan);
+              if (gS !== undefined) {
+                setLatSpan(lS);
+                setLngSpan(gS);
+                setSpan((lS + gS) / 2.0);
+              } else {
+                setLatSpan(lS);
+                setLngSpan(lS);
+                setSpan(lS);
+              }
             }}
           />
 
@@ -2529,6 +2870,146 @@ export default function Home() {
                 )}
           </div>
 
+          {/* ── Task 2: Digital Twin Timeline Forecast Slider overlay ── */}
+          {forecasts && Object.keys(forecasts).length > 0 && (
+            <div style={{
+              position: "absolute",
+              bottom: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              background: "rgba(10, 15, 28, 0.95)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
+              borderRadius: "12px",
+              padding: "10px 20px",
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+              minWidth: "360px"
+            }}>
+              <span style={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: "#38bdf8", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em", flexShrink: 0 }}>
+                🔮 DIGITAL TWIN
+              </span>
+              <div style={{ display: "flex", flexGrow: 1, justifyContent: "space-between", gap: "6px" }}>
+                {[0, 15, 30, 60].map((mins) => (
+                  <button
+                    key={mins}
+                    onClick={() => {
+                      setForecastHorizon(mins);
+                      setEventLog(prev => [...prev, `[Digital Twin] Time-traveling forecast horizon to T+${mins} minutes.`]);
+                    }}
+                    style={{
+                      flex: 1,
+                      background: forecastHorizon === mins ? "#38bdf8" : "rgba(255,255,255,0.05)",
+                      border: "none",
+                      borderRadius: "6px",
+                      color: forecastHorizon === mins ? "#000" : "#a1a1aa",
+                      padding: "6px 8px",
+                      fontSize: "0.65rem",
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    {mins === 0 ? "LIVE" : `+${mins}M`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Ranked Decision alternatives overlay ── */}
+          {rankedPortfolios && rankedPortfolios.length > 0 && (
+            <div style={{
+              position: "absolute",
+              top: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              background: "rgba(10, 15, 28, 0.96)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
+              borderRadius: "10px",
+              padding: "10px 14px",
+              boxShadow: "0 6px 24px rgba(0,0,0,0.5)",
+              maxWidth: "580px",
+              color: "#fff"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "4px" }}>
+                <span style={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", color: "#38bdf8", fontWeight: "bold" }}>📋 RANKED STRATEGIC DECISION PORTFOLIOS</span>
+                <span style={{ fontSize: "0.58rem", color: "#a1a1aa" }}>CO-PILOT RECOMMENDATIONS</span>
+              </div>
+              <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px" }}>
+                {rankedPortfolios.map((portfolio, pIdx) => (
+                  <button
+                    key={portfolio.alternative_id}
+                    onClick={() => {
+                      setSelectedPortfolio(portfolio.alternative_id);
+                      setEventLog(prev => [...prev, `[Decision DSS] Switched strategy configuration to: ${portfolio.name}`]);
+                    }}
+                    style={{
+                      background: selectedPortfolio === portfolio.alternative_id ? "rgba(56, 189, 248, 0.15)" : "rgba(255,255,255,0.03)",
+                      border: selectedPortfolio === portfolio.alternative_id ? "1px solid #38bdf8" : "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: "6px",
+                      padding: "6px 8px",
+                      textAlign: "left",
+                      color: selectedPortfolio === portfolio.alternative_id ? "#38bdf8" : "#fff",
+                      cursor: "pointer",
+                      minWidth: "120px",
+                      flexShrink: 0
+                    }}
+                  >
+                    <div style={{ fontSize: "0.6rem", fontWeight: "bold" }}>Rank {pIdx + 1}: {portfolio.name.split(" ")[0]}</div>
+                    <div style={{ fontSize: "0.5rem", color: "#a1a1aa", marginTop: "2px" }}>Utility: {portfolio.utility_score.toFixed(0)}</div>
+                    <div style={{ fontSize: "0.5rem", color: "#10b981" }}>Lives: {portfolio.outcome_forecast?.expected_lives_saved.toFixed(0)}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Benchmarking comparative results modal overlay ── */}
+          {benchmarkResults && (
+            <div style={{
+              position: "absolute",
+              top: "90px",
+              left: "16px",
+              zIndex: 1000,
+              background: "rgba(15, 23, 42, 0.98)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(147, 51, 234, 0.4)",
+              borderRadius: "12px",
+              padding: "16px",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
+              width: "320px",
+              color: "#fff"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "6px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "0.7rem", color: "#d8b4fe", fontWeight: "bold" }}>📊 SCENARIO BENCHMARKS</span>
+                <button
+                  onClick={() => setBenchmarkResults(null)}
+                  style={{ background: "none", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "0.8rem" }}
+                >✕</button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {Object.values(benchmarkResults).map((res) => (
+                  <div key={res.name} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px", padding: "6px 8px", fontSize: "0.6rem" }}>
+                    <div style={{ fontWeight: "bold", color: res.name.includes("Sentinel") ? "#38bdf8" : "#fff", marginBottom: "4px" }}>{res.name}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px", color: "#a1a1aa" }}>
+                      <div>Lives Saved: <span style={{ color: "#fff", fontWeight: "bold" }}>{res.expected_lives_saved}</span></div>
+                      <div>Time: <span style={{ color: "#fff" }}>{res.average_transit_time_minutes}m</span></div>
+                      <div>Confidence: <span style={{ color: "#fff" }}>{(res.average_route_confidence * 100).toFixed(0)}%</span></div>
+                      <div>Fuel: <span style={{ color: "#fff" }}>{res.total_fuel_consumed}L</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {havens.length > 0 && (
             <div className="hud-overlay">
               {havens.slice(0, 3).map((haven, idx) => {
@@ -2650,55 +3131,122 @@ export default function Home() {
             </div>
           </div>
  
-          <div style={{ display: "flex", background: "rgba(255,255,255,0.01)", border: "1px solid var(--border-color)", borderRadius: "8px", overflow: "hidden" }}>
-            <button 
-              onClick={() => setActiveTab("telemetry")} 
-              className="btn" 
-              style={{ 
-                flex: 1, 
-                background: activeTab === "telemetry" ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                border: "none",
-                borderRadius: 0,
-                color: activeTab === "telemetry" ? "#fff" : "var(--text-secondary)",
-                fontSize: "0.75rem",
-                padding: "10px"
-              }}
+          {/* Research Mode Toggle */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "-2px" }}>
+            <button
+              onClick={() => setIsResearchMode(r => !r)}
+              className={`btn-research ${isResearchMode ? "on" : "off"}`}
             >
-              <Terminal size={12} style={{ marginRight: "4px", display: "inline" }} /> Logs
-            </button>
-            <button 
-              onClick={() => setActiveTab("analytics")} 
-              className="btn"
-              style={{ 
-                flex: 1, 
-                background: activeTab === "analytics" ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                border: "none",
-                borderRadius: 0,
-                color: activeTab === "analytics" ? "#fff" : "var(--text-secondary)",
-                fontSize: "0.75rem",
-                padding: "10px",
-                borderLeft: "1px solid rgba(255,255,255,0.05)",
-                borderRight: "1px solid rgba(255,255,255,0.05)"
-              }}
-            >
-              <BarChart3 size={12} style={{ marginRight: "4px", display: "inline" }} /> Dashboard
-            </button>
-            <button 
-              onClick={() => setActiveTab("experiments")} 
-              className="btn"
-              style={{ 
-                flex: 1, 
-                background: activeTab === "experiments" ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                border: "none",
-                borderRadius: 0,
-                color: activeTab === "experiments" ? "#fff" : "var(--text-secondary)",
-                fontSize: "0.75rem",
-                padding: "10px"
-              }}
-            >
-              <Shield size={12} style={{ marginRight: "4px", display: "inline" }} /> Ablation
+              <span>🔬</span> Research Mode {isResearchMode ? "ON" : "OFF"}
             </button>
           </div>
+
+          {/* 7-tab grid — CSS grid, accent-underline active state */}
+          <div className="tab-grid-7">
+            {[
+              { id: "situation",     label: "Situation", icon: "🎯",  accent: "tab-accent-cyan"   },
+              { id: "telemetry",     label: "Logs",      lucide: <Terminal size={10} />, accent: "tab-accent-indigo" },
+              { id: "analytics",     label: "Charts",    lucide: <BarChart3 size={10} />, accent: "tab-accent-indigo" },
+              { id: "xai",           label: "XAI",       icon: "🧠",  accent: "tab-accent-purple" },
+              { id: "counterfactual",label: "What-If",   icon: "🔀",  accent: "tab-accent-amber"  },
+              { id: "experiments",   label: "Ablation",  lucide: <Shield size={10} />, accent: "tab-accent-indigo" },
+              { id: "governance",    label: "Governance",icon: "⚖️",  accent: "tab-accent-purple" },
+            ].map(({ id, label, icon, lucide, accent }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={activeTab === id ? accent : ""}
+              >
+                {lucide ? <>{lucide} {label}</> : <>{icon} {label}</>}
+              </button>
+            ))}
+          </div>
+ 
+          {activeTab === "situation" && (
+            <div className="card" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <SituationDashboard
+                situationAssessment={situationAssessment || (xaiData && xaiData.situation_assessment)}
+                metrics={metrics}
+                telemetry={telemetry}
+                disasterType={disasterType}
+                agents={agents}
+              />
+            </div>
+          )}
+
+          {activeTab === "governance" && (
+            <div className="card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "14px", overflowY: "auto" }}>
+              <div className="section-header section-header-purple" style={{ marginBottom: "8px", border: "none" }}>
+                MISSION GOVERNANCE (EGL)
+              </div>
+              
+              {/* Mission Policy Settings Card */}
+              <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ fontSize: "0.68rem", fontWeight: "bold", color: "#a78bfa", marginBottom: "8px" }}>⚖️ ACTIVE MISSION POLICY</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div>
+                    <label style={{ fontSize: "0.58rem", color: "#94a3b8", display: "block", marginBottom: "4px" }}>POLICY PROFILE</label>
+                    <select 
+                      className="select-input-sidebar" 
+                      value={selectedPolicyProfile} 
+                      onChange={e => setSelectedPolicyProfile(e.target.value)} 
+                      style={{ width: "100%", padding: "6px 8px", fontSize: "0.7rem", background: "#0b0f19", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", color: "#fff" }}
+                    >
+                      <option value="BALANCED">Balanced Triage (Standard)</option>
+                      <option value="CREW_CONSERVATIVE">Crew-Conservative (Low Safety Tolerance)</option>
+                      <option value="CIVILIAN_PRIORITY">Civilian-Priority (High Safety Tolerance)</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label style={{ fontSize: "0.58rem", color: "#94a3b8", display: "block", marginBottom: "4px" }}>OFFICER AUTHORIZATION SIGNATURE ID</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. OFFICER_99" 
+                      value={governanceOfficerId} 
+                      onChange={e => setGovernanceOfficerId(e.target.value)}
+                      style={{ width: "100%", padding: "6px 8px", fontSize: "0.7rem", background: "#0b0f19", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "4px", color: "#fff", boxSizing: "border-box" }} 
+                    />
+                  </div>
+
+                  <button 
+                    onClick={handleApplyPolicyProfile}
+                    className="btn btn-primary"
+                    style={{ width: "100%", fontSize: "0.65rem", padding: "6px" }}
+                  >
+                    APPLY MISSION POLICY SWITCH
+                  </button>
+                </div>
+              </div>
+
+              {/* Forensic Audit Log Card */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px", overflow: "hidden" }}>
+                <div style={{ fontSize: "0.68rem", fontWeight: "bold", color: "#a78bfa" }}>📜 FORENSIC AUDIT TRAIL (APPEND-ONLY)</div>
+                <div style={{ flex: 1, overflowY: "auto", background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.03)", borderRadius: "8px", padding: "8px" }}>
+                  {eglAuditLogs.length === 0 ? (
+                    <div style={{ color: "var(--text-muted)", fontSize: "0.65rem", padding: "12px", textAlign: "center" }}>
+                      No governance records logged yet.
+                    </div>
+                  ) : (
+                    eglAuditLogs.map((log, idx) => (
+                      <div key={idx} style={{ padding: "6px 8px", borderBottom: "1px solid rgba(255,255,255,0.04)", fontSize: "0.58rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", color: "#a78bfa", fontWeight: "bold" }}>
+                          <span>[{log.timestamp_utc || "N/A"}] {log.agent_id}</span>
+                          <span style={{ color: log.outcome === "EXECUTE" ? "var(--color-safe)" : log.outcome === "DEFER" ? "var(--color-uncertain)" : "var(--color-danger)" }}>{log.outcome}</span>
+                        </div>
+                        <div style={{ color: "#94a3b8", marginTop: "2px" }}>
+                          Target: {log.target_node} | Phase: {log.phase} | Profile: {log.ethical_profile}
+                        </div>
+                        <div style={{ color: "#475569", fontSize: "0.5rem", fontFamily: "var(--font-mono)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          SHA-256: {log.sha256_hash || "GENERIC_RECORD_SIGNATURE"}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
  
           {activeTab === "telemetry" && (
             <div className="card" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -2830,6 +3378,26 @@ export default function Home() {
             </div>
           )}
  
+          {activeTab === "xai" && (
+            <div className="card" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+              <ExplainabilityPanel
+                reasoningTree={xaiData && xaiData.reasoning_tree}
+                latestDecision={xaiData && xaiData.latest_xai_events && xaiData.latest_xai_events.length > 0
+                  ? xaiData.latest_xai_events[xaiData.latest_xai_events.length - 1]
+                  : (decision || null)}
+                isResearch={isResearchMode}
+              />
+            </div>
+          )}
+ 
+          {activeTab === "counterfactual" && (
+            <div className="card" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+              <CounterfactualPanel
+                agents={agents}
+              />
+            </div>
+          )}
+ 
           {activeTab === "experiments" && (
             <div className="card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
               <h3 className="card-title">Comparative Performance (60% Corruption)</h3>
@@ -2942,8 +3510,9 @@ export default function Home() {
 
 function varColor(baseline) {
   if (baseline === "AMIS-RU") return "#10b981"; // Emerald
-  if (baseline === "BASELINE-A") return "#ef4444"; // Red
-  return "#f59e0b"; // Yellow
+  if (baseline === "SGA-RA") return "#ef4444"; // Red
+  if (baseline === "PSA-RA") return "#f59e0b"; // Yellow
+  return "#a855f7"; // Purple for others
 }
 
 function formatWeatherInfo(weatherVal) {

@@ -1,0 +1,92 @@
+{
+  "project_name": "Sentinel DSS IEEE Publication Dominance",
+  "version": "2.0.0",
+  "timestamp": "2026-08-08T04:28:30Z",
+  "backend_spec": {
+    "modules": [
+      {
+        "name": "Dynamic Corridor Clearance Engine",
+        "file": "backend/simulation/engine.py",
+        "description": "When heavy rescue vehicles (HIGH_WATER_TRUCK or HELICOPTER airlift) traverse rubble-blocked edges in Earthquake scenarios, the edge transitions to cleared_rubble=True, setting standard car traversal cost to 3.0x normal instead of 1e9 impassable obstacle.",
+        "functions": ["_update_agent_movement", "step"]
+      },
+      {
+        "name": "Heterogeneous Fleet Allocator",
+        "file": "backend/allocation/allocator.py",
+        "description": "Helicopters are prioritized for land-isolated population nodes (nodes with zero open ground corridors), while ground trucks and ambulances are allocated to accessible perimeter targets.",
+        "functions": ["allocate_rescue_teams", "calculate_ev"]
+      },
+      {
+        "name": "Speed-Adaptive EGL DAP Protocol",
+        "file": "backend/execution_governance/dap.py",
+        "description": "Crew safety risk sigma scales with effective vehicle speed rather than binary edge blockage, allowing controlled low-speed navigation without triggering false safety vetoes.",
+        "functions": ["_compute_sigma", "_check_vetoes"]
+      }
+    ],
+    "api_routes": [
+      {
+        "endpoint": "/api/simulation/run",
+        "method": "POST",
+        "request_dto": {"disaster_type": "str", "seed": "int", "num_rescues": "int"},
+        "response_dto": {"survivors_saved": "int", "saved_percent": "float", "stalls": "int"}
+      },
+      {
+        "endpoint": "/api/benchmark/sweep",
+        "method": "GET",
+        "response_dto": {"results": "dict", "p_values": "dict", "effect_sizes": "dict"}
+      }
+    ]
+  },
+  "db_schema": {
+    "tables": [
+      {
+        "table_name": "simulation_runs",
+        "columns": [
+          {"name": "id", "type": "INTEGER PRIMARY KEY"},
+          {"name": "preset", "type": "VARCHAR(50)"},
+          {"name": "seed", "type": "INTEGER"},
+          {"name": "baseline_type", "type": "VARCHAR(30)"},
+          {"name": "survivors_saved", "type": "INTEGER"},
+          {"name": "total_population", "type": "INTEGER"},
+          {"name": "save_percentage", "type": "FLOAT"},
+          {"name": "vehicle_stalls", "type": "INTEGER"},
+          {"name": "egl_vetoes", "type": "INTEGER"},
+          {"name": "timestamp", "type": "TIMESTAMP"}
+        ]
+      },
+      {
+        "table_name": "telemetry_logs",
+        "columns": [
+          {"name": "id", "type": "INTEGER PRIMARY KEY"},
+          {"name": "run_id", "type": "INTEGER FOREIGN KEY"},
+          {"name": "step", "type": "INTEGER"},
+          {"name": "active_rescues", "type": "INTEGER"},
+          {"name": "idle_rescues", "type": "INTEGER"},
+          {"name": "moving_rescues", "type": "INTEGER"}
+        ]
+      }
+    ]
+  },
+  "frontend_layout": {
+    "design_tokens": {
+      "font_family_heading": "Outfit, sans-serif",
+      "font_family_body": "Inter, sans-serif",
+      "color_palette": {
+        "primary": "hsl(215, 85%, 56%)",
+        "secondary": "hsl(160, 84%, 39%)",
+        "accent": "hsl(38, 92%, 50%)",
+        "background": "hsl(222, 47%, 11%)",
+        "card_bg": "rgba(30, 41, 59, 0.75)"
+      },
+      "style": "Glassmorphism Dark Mode with Framer Motion spring physics"
+    },
+    "component_tree": [
+      "DashboardLayout",
+      "HeaderTelemetryBar",
+      "StatCardGrid",
+      "LiveMapCanvas",
+      "EGLDecisionFeed",
+      "BenchmarkComparisonChart"
+    ]
+  }
+}

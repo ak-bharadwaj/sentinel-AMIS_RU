@@ -1,6 +1,7 @@
 import math
 from typing import Dict, Any
 from backend.config import settings
+from backend.config_params.parameters import params
 
 # Vulnerability class multipliers — determines how much rescue urgency increases based on
 # population demographics at the node. Elderly, trapped, and injured populations decay
@@ -21,16 +22,31 @@ def get_vulnerability_multiplier(node_data: Dict[str, Any]) -> float:
     total_triage = t_imm + t_del + t_min
     
     if total_triage > 0:
-        # Triage weighting: Immediate=3.0, Delayed=2.0, Minor=1.2
-        return (t_imm * 3.0 + t_del * 2.0 + t_min * 1.2) / total_triage
+        # Weighted blend based on actual triage proportions, not binary trigger
+        pop = node_data.get('population', 0) or 1
+        general_pop = max(0, pop - total_triage)
+        weighted = (
+            t_imm * VULNERABILITY_MULTIPLIERS["CRITICAL"]
+            + t_del * VULNERABILITY_MULTIPLIERS["HIGH"]
+            + t_min * VULNERABILITY_MULTIPLIERS["MEDIUM"]
+            + general_pop * VULNERABILITY_MULTIPLIERS["STANDARD"]
+        )
+        return weighted / pop
+
 
     node_type = node_data.get('node_type', 'ROAD')
     if node_type == 'HOSPITAL':
-        return VULNERABILITY_MULTIPLIERS['CRITICAL']
+        population = node_data.get('population', 0)
+        # Only assign CRITICAL if hospital itself is in danger or has trapped population
+        if node_data.get('p_danger', 0.0) > 0.5 or population > 0:
+            # Hospital: scale by actual patients (2.0 base + up to 1.0 bonus for high patient count)
+            return 2.0 + min(1.0, population / 200.0)
+        return VULNERABILITY_MULTIPLIERS['LOW']
     elif node_type == 'POPULATION_ZONE':
         pop_density = node_data.get('population', 0)
-        if pop_density > 400:
-            return VULNERABILITY_MULTIPLIERS['HIGH']    # Dense residential, likely elderly
+        dense_threshold = getattr(params, 'dense_population_threshold', 400)
+        if pop_density > dense_threshold:
+            return 2.5    # Dense residential, likely elderly
         else:
             return VULNERABILITY_MULTIPLIERS['MEDIUM']
     elif node_type in ('BRIDGE', 'JUNCTION'):
@@ -51,7 +67,6 @@ def calculate_ev(
       S_expected = Population * exp(-gamma * p_danger * t_arrival)
       EV = p_state_correct * p_danger * S_expected * Reachability * VulnerabilityMultiplier
     """
-    from backend.config_params.parameters import params
     # Resolve decay constant based on disaster type
     disaster_upper = disaster_type.upper()
     if disaster_upper == "EARTHQUAKE":
@@ -63,9 +78,18 @@ def calculate_ev(
     else:
         gamma = params.gamma_flood
 
-    # Survival decay: expected survivors remaining at time of arrival
-    s_expected = population * math.exp(-gamma * p_danger * t_arrival_minutes)
+    if disaster_upper == "FLOOD":
+        eff_p_danger = max(0.10, p_danger)   # minimal floor for flood
+        eff_p_state  = max(0.60, p_state_correct)
+    else:
+        eff_p_danger = max(1e-4, p_danger)   # raw for earthquake/cyclone/wildfire
+        eff_p_state  = max(0.50, p_state_correct)
     
-    # Expected value of rescue, scaled by population vulnerability and discounted by epistemic confidence
-    ev = p_state_correct * p_danger * s_expected * reachability * vulnerability_multiplier
+    # Survival decay: expected survivors remaining at time of arrival
+    s_expected = population * math.exp(-gamma * eff_p_danger * t_arrival_minutes)
+    
+    # Expected value of rescue: expected lives saved, scaled by danger, vulnerability and reachability
+    ev = eff_p_state * eff_p_danger * s_expected * reachability * vulnerability_multiplier
     return ev
+
+

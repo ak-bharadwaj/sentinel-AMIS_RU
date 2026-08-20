@@ -1,0 +1,47 @@
+{
+  "total_steps": 480,
+  "total_survivors_saved": 3990,
+  "initial_population": 551291,
+  "saved_pct": 0.7238,
+  "route_failures": 1,
+  "route_failures_by_vehicle": {
+    "SCOUT_CAR": 1
+  },
+  "tbho_created": 0,
+  "tbho_timeouts": 0,
+  "phases": {
+    "GOLDEN_HOUR": {
+      "steps": "0-60",
+      "survivors": 1390,
+      "EXECUTE": 176,
+      "STAGED_EXECUTE": 123,
+      "DEFER": 0,
+      "ESCALATE": 0,
+      "mean_r_act": 0.3472,
+      "mean_r_wait": 16.4894,
+      "mean_delta_r": 16.1421
+    },
+    "SUSTAINED_OPS": {
+      "steps": "60-360",
+      "survivors": 2600,
+      "EXECUTE": 360,
+      "STAGED_EXECUTE": 308,
+      "DEFER": 0,
+      "ESCALATE": 0,
+      "mean_r_act": 0.5771,
+      "mean_r_wait": 5.0506,
+      "mean_delta_r": 4.4736
+    },
+    "RECOVERY": {
+      "steps": "360-480",
+      "survivors": 0,
+      "EXECUTE": 0,
+      "STAGED_EXECUTE": 0,
+      "DEFER": 0,
+      "ESCALATE": 0,
+      "mean_r_act": 0.0,
+      "mean_r_wait": 0.0,
+      "mean_delta_r": 0.0
+    }
+  }
+}

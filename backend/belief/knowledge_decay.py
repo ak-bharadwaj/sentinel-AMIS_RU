@@ -6,7 +6,6 @@ from typing import Any
 def decay_confidence(belief_graph: nx.Graph, lambda_decay: float = 0.05) -> None:
     """Decays node p_state_correct and updates edge confidences as the average of node confidence."""
     from backend.config_params.parameters import params
-    lambda_decay = params.knowledge_decay_rate
     # 1. Decay nodes
     for n_id in belief_graph.nodes:
         p_state = belief_graph.nodes[n_id].get('p_state_correct', 1.0)

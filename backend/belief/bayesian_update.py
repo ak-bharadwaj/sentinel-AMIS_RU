@@ -63,8 +63,14 @@ def apply_scout_observation(
     
     belief_graph.nodes[node_id]['p_danger'] = updated_p
     belief_graph.nodes[node_id]['status'] = gt_status
-    # Node confidence ceiling bounded by sensor capability
-    belief_graph.nodes[node_id]['p_state_correct'] = quality.eta
+    # Node confidence ceiling accumulated probabilistically over repeated observations
+    old_conf = belief_graph.nodes[node_id].get('p_state_correct', 0.5)
+    belief_graph.nodes[node_id]['p_state_correct'] = max(quality.eta, 1.0 - (1.0 - old_conf) * (1.0 - quality.eta))
+    # Sync verified population and triage metrics into belief graph
+    belief_graph.nodes[node_id]['population'] = gt_node.get('population', 0)
+    belief_graph.nodes[node_id]['triage_immediate'] = gt_node.get('triage_immediate', 0)
+    belief_graph.nodes[node_id]['triage_delayed'] = gt_node.get('triage_delayed', 0)
+    belief_graph.nodes[node_id]['triage_minor'] = gt_node.get('triage_minor', 0)
     
     # 3. Verify all incident edges and update neighbors using visibility range-based decay
     lat_u = belief_graph.nodes[node_id].get('lat', 0.0)
@@ -75,9 +81,17 @@ def apply_scout_observation(
         # Read true blocked state of this edge
         gt_edge_blocked = ground_truth_graph.edges[node_id, neighbor].get('blocked', False)
         
+        # Scale-dependent observation logic for aerial assets (DRONE_CAMERA)
+        is_major = belief_graph.edges[node_id, neighbor].get('speed_factor', 1.0) >= 1.2
+        if sensor_type == "DRONE_CAMERA":
+            edge_conf = quality.eta * 0.95 if is_major else 0.30
+        else:
+            edge_conf = quality.eta
+            
         # Update edge belief
         belief_graph.edges[node_id, neighbor]['blocked'] = gt_edge_blocked
-        belief_graph.edges[node_id, neighbor]['confidence'] = quality.eta
+        old_edge_conf = belief_graph.edges[node_id, neighbor].get('confidence', 0.5)
+        belief_graph.edges[node_id, neighbor]['confidence'] = max(edge_conf, 1.0 - (1.0 - old_edge_conf) * (1.0 - edge_conf))
         
         # Partially verify neighbor node based on distance, visibility and LOS modeling assumptions
         lat_v = belief_graph.nodes[neighbor].get('lat', 0.0)
@@ -95,6 +109,6 @@ def apply_scout_observation(
             decay_gain_factor = getattr(params, 'scout_observation_decay_gain_factor', 0.85)
             gain = range_ratio * edge_visibility * line_of_sight * decay_gain_factor
             neigh_state = belief_graph.nodes[neighbor].get('p_state_correct', 0.5)
-            belief_graph.nodes[neighbor]['p_state_correct'] = max(neigh_state, gain)
+            belief_graph.nodes[neighbor]['p_state_correct'] = max(neigh_state, 1.0 - (1.0 - neigh_state) * (1.0 - (quality.eta * gain)))
 
 

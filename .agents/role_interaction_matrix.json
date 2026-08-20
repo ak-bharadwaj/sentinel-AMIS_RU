@@ -1,0 +1,20 @@
+{
+  "roles": [
+    {
+      "role": "Incident Commander",
+      "permitted_views": ["/dashboard", "/telemetry", "/egl-governance"],
+      "user_actions": ["view_realtime_metrics", "override_egl_veto", "trigger_benchmark"],
+      "api_endpoints": ["GET /api/simulation/telemetry", "POST /api/egl/override", "POST /api/benchmark/sweep"],
+      "db_entities": ["simulation_runs", "telemetry_logs"],
+      "frontend_components": ["DashboardLayout", "EGLDecisionFeed", "HeaderTelemetryBar"]
+    },
+    {
+      "role": "Field Rescue Team Leader",
+      "permitted_views": ["/field-map", "/assigned-corridors"],
+      "user_actions": ["view_assigned_route", "report_rubble_clearance", "confirm_patient_offload"],
+      "api_endpoints": ["GET /api/agent/route", "POST /api/field/clearance", "POST /api/field/offload"],
+      "db_entities": ["telemetry_logs"],
+      "frontend_components": ["LiveMapCanvas", "FieldRouteCard"]
+    }
+  ]
+}

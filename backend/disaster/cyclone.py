@@ -46,9 +46,12 @@ class CycloneModule(object):
                 
             cyclone_risk = 0.6 * coast_risk + 0.4 * (self.wind_speed / 200.0)
             p_danger = max(0.05, min(0.95, cyclone_risk))
+            p_wind = max(0.0, min(1.0, (self.wind_speed * coast_risk) / 100.0))
             
+            graph.nodes[n_id]['p_wind'] = p_wind
+            graph.nodes[n_id]['wind_speed'] = self.wind_speed * coast_risk
             graph.nodes[n_id]['p_danger'] = p_danger
-            if p_danger > 0.85:
+            if p_danger > 0.8:
                 graph.nodes[n_id]['status'] = "DANGER"
             else:
                 graph.nodes[n_id]['status'] = "SAFE"
@@ -85,7 +88,6 @@ class CycloneModule(object):
 
     def update_simulation_step(self, graph: nx.Graph, step: int) -> list:
         newly_blocked_edges = []
-        random.seed(step)
         
         # 1. Initialize eye coordinates to graph center if not set
         if self.eye_lat is None or self.eye_lon is None:
@@ -100,8 +102,8 @@ class CycloneModule(object):
         else:
             # Move storm eye coordinates along track trajectory
             # 1 degree lat ≈ 111km. Speed is in km/h.
-            # Assuming step represents 10 minutes of real time
-            step_hours = 10.0 / 60.0
+            # Assuming step represents 1 minute of real time
+            step_hours = 1.0 / 60.0
             dist_moved = self.track_speed_kmh * step_hours
             heading_rad = math.radians(self.track_heading_deg)
             self.eye_lat += (dist_moved * math.cos(heading_rad)) / 111.0
@@ -114,20 +116,30 @@ class CycloneModule(object):
                 continue
 
             # Calculate distance to storm eye in kilometers using haversine metric
-            dist_km = haversine_distance(lat, lon, self.eye_lat, self.eye_lon)
+            dist_km = haversine_distance(lat, lon, self.eye_lat, self.eye_lon) / 1000.0
             
             # Holland B gradient wind speed
             local_wind = self.get_holland_wind(dist_km, lat)
             
             # Inland wind decay multiplier: NWS guidance (loses ~8% wind speed per km inland)
-            dist_to_coast_m = data.get('dist_to_coast', 0.0)
+            dist_to_coast_m = float(data.get('dist_to_coast', 0.0) or 0.0)
             if dist_to_coast_m > 0:
                 dist_to_coast_km = dist_to_coast_m / 1000.0
                 inland_decay = math.exp(-0.08 * dist_to_coast_km)
                 local_wind *= inland_decay
                 
+            # Compute p_wind from local wind speed: gusts >80 km/h push p_wind & p_danger past 0.8
+            p_wind = max(0.0, min(1.0, local_wind / 100.0))
+            data['p_wind'] = p_wind
+            data['wind_speed'] = local_wind
+
+            # Scale p_danger so gusts >80 km/h push p_danger past 0.8
+            current_danger = data.get('p_danger', 0.0)
+            next_danger = max(current_danger, p_wind)
+            data['p_danger'] = next_danger
+
             # Storm surge — only inundates nodes if surge depth EXCEEDS effective elevation
-            if dist_to_coast_m <= 10000.0:  # within 10 km of coast
+            if 0 < dist_to_coast_m <= 10000.0:  # within 10 km of coast
                 Vmax_ms = self.wind_speed / 3.6
                 peak_surge = 0.0023 * Vmax_ms**2 * (50.0 / 30.0)
                 dist_coast_km = dist_to_coast_m / 1000.0
@@ -142,24 +154,24 @@ class CycloneModule(object):
                     # Water reaches this road surface
                     data['water_level'] = max(data.get('water_level', 0.0), water_above_road)
                 # else: elevated node — surge doesn't reach road surface
-                
-            # Wind gusts randomly cause damage proportional to local wind speed and vulnerability
-            gust_chance = max(0.0, min(1.0, local_wind / 1000.0))
-            current_danger = data.get('p_danger', 0.0)
-            
-            if random.random() < gust_chance * current_danger:
-                next_danger = min(1.0, current_danger + 0.1)
-                data['p_danger'] = next_danger
-                
-                if next_danger > 0.90 and data.get('status') != "DANGER" and data.get('node_type') not in ("HOSPITAL", "SHELTER"):
-                    data['status'] = "DANGER"
+
+            if next_danger > 0.80 and data.get('status') != "DANGER" and data.get('node_type') not in ("HOSPITAL", "SHELTER"):
+                data['status'] = "DANGER"
+                for neighbor in list(graph.neighbors(n_id)):
+                    if not graph.has_edge(n_id, neighbor):
+                        continue
+                    if not graph.edges[n_id, neighbor].get('blocked', False):
+                        graph.edges[n_id, neighbor]['blocked'] = True
+                        graph.edges[n_id, neighbor]['confidence'] = 1.0
+                        newly_blocked_edges.append((n_id, neighbor))
+            elif local_wind < 40.0 and data.get('status') == "DANGER" and data.get('node_type') not in ("HOSPITAL", "SHELTER"):
+                if data.get('water_level', 0.0) <= 0.3:
+                    data['status'] = "SAFE"
+                    data['p_danger'] = p_wind
                     for neighbor in list(graph.neighbors(n_id)):
-                        if not graph.has_edge(n_id, neighbor):
-                            continue
-                        if not graph.edges[n_id, neighbor].get('blocked', False):
-                            graph.edges[n_id, neighbor]['blocked'] = True
+                        if graph.has_edge(n_id, neighbor):
+                            graph.edges[n_id, neighbor]['blocked'] = False
                             graph.edges[n_id, neighbor]['confidence'] = 1.0
-                            newly_blocked_edges.append((n_id, neighbor))
                             
         return newly_blocked_edges
 

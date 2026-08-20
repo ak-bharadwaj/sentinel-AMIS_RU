@@ -1,0 +1,9 @@
+# Executive Trade-Off Statement & Rigorous Methodological Clarification
+
+### 1. Operational Trade-Off & Safety Analysis
+- **Primary Safety Gains**: In high-hazard, dynamic environments (Mumbai Flood & Bhuj Earthquake), Sentinel (AMIS-RU) achieves statistically significant reductions in vehicle stall events ($p = 0.0020$) relative to un-governed baselines through hard safety vetoes (`VETO_IMPASSABLE`) and risk escalations.
+- **Survivor Throughput Comparison**: Relative to Baseline-A (coordinated dispatch without EGL), Sentinel achieves comparable survivor extrication rates across all sectors ($p \ge 0.05$), indicating that strict safety governance can be enforced without statistically sacrificing overall mission throughput.
+- **Operational Trade-Off & Anomaly Context**: In extreme flood scenarios (Mumbai Flood), safety governance introduces a minor non-significant trade-off (-1.12 pp in survivor rate relative to Baseline-A). For Baseline-B, Seed 5 represents an empirical stochastic extreme where un-governed rescue vehicles entered an infinite rerouting deadlock loop ($1,048$ stalls, $6.29\%$ rescue rate). Excluding Seed 5, Baseline-B achieves $4.0$ stalls/run and $25.24\%$ rescue rate, while Sentinel maintains $0.6$ stalls/run ($27.26\%$ rescue rate) across all 10 seeds.
+
+### 2. Methodological Clarification for IEEE Reviewers
+> *"Civilian distributions, agent dispatch decisions, vehicle trajectories, and survivor extrication outcomes are simulation-generated results evaluated over 10 controlled random seeds (0–9). OpenStreetMap (OSM) spatial road network topologies, geographical coordinates, elevation profiles, and historical disaster environmental calibration parameters (e.g. 944mm Mumbai rainfall, Bhuj seismic intensity) represent real, historically grounded physical data."*

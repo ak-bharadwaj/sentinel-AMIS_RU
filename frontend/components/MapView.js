@@ -29,11 +29,15 @@ export default function MapView({
   onRefreshState,
   isSelectingRegion = false,
   span = 0.06,
+  latSpan = 0.06,
+  lngSpan = 0.06,
   onChangeRegion,
   isDeploying = false,
   onMapClick,
   deploymentMarkers = { havens: [], hospitals: [], scouts: [], rescues: [] },
-  activeDisasterType = "FLOOD"
+  activeDisasterType = "FLOOD",
+  forecastHorizon = 0,
+  forecasts = {}
 }) {
   const mapRef    = useRef(null);
   const leafletMap = useRef(null);
@@ -224,10 +228,10 @@ export default function MapView({
 
     if (isSelectingRegion) return;
 
-    const left   = centerLon - span;
-    const bottom = centerLat - span;
-    const right  = centerLon + span;
-    const top    = centerLat + span;
+    const left   = centerLon - lngSpan;
+    const bottom = centerLat - latSpan;
+    const right  = centerLon + lngSpan;
+    const top    = centerLat + latSpan;
 
     const borderBounds = [[bottom, left], [top, right]];
     const boundaryRect = L.rectangle(borderBounds, {
@@ -258,8 +262,19 @@ export default function MapView({
         const geom = edge.geometry && edge.geometry.length >= 2 ? edge.geometry : [p1, p2];
 
         // Get endpoints risk properties to dynamically highlight high threat roads in red
-        const uNode = nodes.find(n => n.id === edge.source);
-        const vNode = nodes.find(n => n.id === edge.target);
+        let uNode = nodes.find(n => n.id === edge.source);
+        let vNode = nodes.find(n => n.id === edge.target);
+        
+        // Dynamic time-travel forecast override logic
+        if (forecastHorizon > 0 && forecasts && forecasts[forecastHorizon]) {
+          const fc = forecasts[forecastHorizon];
+          if (uNode && fc[edge.source]) {
+            uNode = { ...uNode, p_danger: fc[edge.source].p_danger ?? uNode.p_danger, status: fc[edge.source].status ?? uNode.status, water_level: fc[edge.source].water_level ?? uNode.water_level };
+          }
+          if (vNode && fc[edge.target]) {
+            vNode = { ...vNode, p_danger: fc[edge.target].p_danger ?? vNode.p_danger, status: fc[edge.target].status ?? vNode.status, water_level: fc[edge.target].water_level ?? vNode.water_level };
+          }
+        }
         
         const disasterType = (activeDisasterType || "FLOOD").toUpperCase();
         let isHighRisk = false;
@@ -303,9 +318,18 @@ export default function MapView({
         let isBlocked = edge.blocked || isHighRisk;
 
         let color     = isBlocked ? "#ff3333" : (edge.cleared ? "#22c55e" : "#94a3b8");
-        // Reduced baseWeight for blocked/risk roads from 3.5 to 1.8 to make them thinner and distinct
+        // Apply custom confidence overlays color tiering if available
+        if (edge.confidence_color === "green") {
+          color = "#22c55e"; // Known safe / clear
+        } else if (edge.confidence_color === "yellow") {
+          color = "#eab308"; // Partially known / unverified risk
+        } else if (edge.confidence_color === "red") {
+          color = "#ef4444"; // High risk / suspected blocked
+        } else if (edge.confidence_color === "grey") {
+          color = "#64748b"; // No observations / blindspot
+        }
+        
         let baseWeight = isBlocked ? 1.8       : (edge.cleared ? 2.5       : 2);
-
         if (isBlocked && edge.hvt) { color = "#ea580c"; baseWeight = 4.0; }
 
         const weight    = Math.max(0.5, baseWeight * lineScale);
@@ -359,7 +383,17 @@ export default function MapView({
       });
 
     // ── Draw Nodes ─────────────────────────────────────────────────────────────
-    nodes.forEach(node => {
+    nodes.forEach(rawNode => {
+      let node = { ...rawNode };
+      
+      // Dynamic time-travel forecast override logic for nodes
+      if (forecastHorizon > 0 && forecasts && forecasts[forecastHorizon] && forecasts[forecastHorizon][node.id]) {
+        const fc = forecasts[forecastHorizon][node.id];
+        node.p_danger = fc.p_danger ?? node.p_danger;
+        node.status = fc.status ?? node.status;
+        node.water_level = fc.water_level ?? node.water_level;
+      }
+
       // ── Task 3: Render custom SVG diagonal pattern hatch layers for flooded / danger zones ──
       const insideNode = node.lat >= bottom && node.lat <= top && node.lon >= left && node.lon <= right;
       if (!insideNode) return;

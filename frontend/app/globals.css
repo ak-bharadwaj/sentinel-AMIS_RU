@@ -537,3 +537,329 @@ div[class*="sidebar"] {
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE A — NEW PANEL DESIGN SYSTEM
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header scanline animation ───────────────────────────────────────────── */
+@keyframes scanline {
+  0%   { left: -60%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
+}
+
+/* ── WebSocket Status Dots ───────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+  50%       { box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+}
+.ws-live-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #10b981; animation: pulse-dot 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(16,185,129,0.6); flex-shrink: 0;
+}
+.ws-offline-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #ef4444; flex-shrink: 0;
+}
+.ws-connecting-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #f59e0b; animation: sentinel-blink 0.8s step-end infinite; flex-shrink: 0;
+}
+
+/* ── Tab accent underlines ───────────────────────────────────────────────── */
+.tab-accent-cyan   { border-bottom: 2px solid #38bdf8 !important; color: #38bdf8 !important; background: transparent !important; }
+.tab-accent-indigo { border-bottom: 2px solid #6366f1 !important; color: #c7d2fe !important; background: transparent !important; }
+.tab-accent-purple { border-bottom: 2px solid #a78bfa !important; color: #a78bfa !important; background: transparent !important; }
+.tab-accent-amber  { border-bottom: 2px solid #f59e0b !important; color: #f59e0b !important; background: transparent !important; }
+
+/* ── Tab grid container ──────────────────────────────────────────────────── */
+.tab-grid-6 {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  background: rgba(255,255,255,0.01); border: 1px solid var(--border-color);
+  border-radius: 8px; overflow: hidden;
+}
+.tab-grid-6 button {
+  border: none; border-radius: 0; background: transparent;
+  color: var(--text-secondary); font-size: 0.58rem; padding: 9px 4px;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 2px solid transparent; font-family: var(--font-mono);
+}
+.tab-grid-6 button:last-child { border-right: none; }
+.tab-grid-6 button:hover { background: rgba(255,255,255,0.03); color: #fff; }
+
+/* ── Research Mode Button ────────────────────────────────────────────────── */
+.btn-research {
+  display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+  border-radius: 5px; cursor: pointer; font-size: 0.55rem; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase; transition: all 0.25s ease;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.btn-research.off { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #475569; }
+.btn-research.on  { background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: #a855f7; box-shadow: 0 0 8px rgba(168,85,247,0.2); }
+
+/* ── KPI Cards (Situation Dashboard) ────────────────────────────────────── */
+.kpi-card { border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; position: relative; overflow: hidden; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box; }
+.kpi-card-critical { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.35); box-shadow: 0 0 12px rgba(239,68,68,0.12); }
+.kpi-card-warning  { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.35); box-shadow: 0 0 12px rgba(245,158,11,0.12); }
+.kpi-card-good     { background: rgba(16,185,129,0.08);  border: 1px solid rgba(16,185,129,0.35);  box-shadow: 0 0 12px rgba(16,185,129,0.12); }
+.kpi-card-info     { background: rgba(56,189,248,0.08);  border: 1px solid rgba(56,189,248,0.35);  box-shadow: 0 0 12px rgba(56,189,248,0.12); }
+.kpi-card-neutral  { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); }
+.kpi-label    { font-size: 0.58rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; }
+.kpi-value    { font-size: 1.3rem; font-weight: 800; font-family: 'IBM Plex Mono', monospace; line-height: 1; }
+.kpi-bar-track { height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px; overflow: hidden; }
+.kpi-bar-fill  { height: 100%; border-radius: 1px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+.kpi-subtitle  { font-size: 0.58rem; color: #475569; line-height: 1.3; }
+.kpi-grid      { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* ── Section Headers ─────────────────────────────────────────────────────── */
+.section-header {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; display: flex; align-items: center;
+  gap: 6px; padding: 2px 0 4px; margin-bottom: 6px;
+}
+.section-header::before { content: ''; width: 3px; height: 11px; border-radius: 1px; flex-shrink: 0; }
+.section-header-cyan   { color: #38bdf8; border-bottom: 1px solid rgba(56,189,248,0.15); }
+.section-header-cyan::before   { background: #38bdf8; box-shadow: 0 0 6px rgba(56,189,248,0.5); }
+.section-header-purple { color: #a78bfa; border-bottom: 1px solid rgba(167,139,250,0.15); }
+.section-header-purple::before { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.5); }
+.section-header-amber  { color: #f59e0b; border-bottom: 1px solid rgba(245,158,11,0.15); }
+.section-header-amber::before  { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+
+/* ── XAI Tree ────────────────────────────────────────────────────────────── */
+.xai-node { display: flex; align-items: flex-start; gap: 6px; padding: 5px 7px; border-radius: 6px; transition: background 0.2s; margin-bottom: 2px; position: relative; }
+.xai-node-clickable { cursor: pointer; }
+.xai-node-clickable:hover { background: rgba(255,255,255,0.04); }
+.xai-node-root { background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); }
+.xai-tree-children { border-left: 1px solid rgba(56,189,248,0.1); margin-left: 17px; }
+.xai-empty-state { padding: 24px; text-align: center; color: #334155; font-size: 0.65rem; }
+.xai-last-decision { padding: 7px 10px; border-radius: 7px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); margin-bottom: 6px; }
+.xai-equation { font-size: 0.56rem; color: #a855f7; font-family: 'IBM Plex Mono', monospace; padding: 3px 6px; background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.15); border-radius: 4px; line-height: 1.4; margin-top: 3px; }
+
+/* ── Counterfactual Panel ────────────────────────────────────────────────── */
+.cf-scenario-card { padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s ease; }
+.cf-result-card { padding: 8px 10px; border-radius: 7px; margin-bottom: 6px; }
+@keyframes cf-spin { to { transform: rotate(360deg); } }
+.cf-spinner { width: 10px; height: 10px; border: 2px solid rgba(245,158,11,0.3); border-top-color: #f59e0b; border-radius: 50%; animation: cf-spin 0.8s linear infinite; display: inline-block; }
+.cf-run-btn { padding: 8px 12px; border-radius: 7px; font-size: 0.62rem; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.8px; text-transform: uppercase; width: 100%; font-family: 'IBM Plex Mono', monospace; }
+.cf-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.brand-section {
+  flex: 1;
+}
+
+/* Fix Missing Spin Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Fix tactical map metadata overlapping with right sidebar */
+.leaflet-right {
+  right: 360px !important;
+}
+
+/* Force popup styling aggressively to fix the white-on-white text bug */
+.leaflet-container .leaflet-popup-content-wrapper, 
+.leaflet-container .leaflet-popup-tip {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.8) !important;
+  border: 1px solid #334155 !important;
+}
+
+.leaflet-container .leaflet-popup-content,
+.leaflet-container .leaflet-popup-content * {
+  color: #f8fafc !important;
+}
+
+
+/* ========================================= */
+/* SHADOW AND GLOW ADJUSTMENTS FOR SIDEBAR */
+/* ========================================= */
+
+.sidebar, 
+.sidebar-right, 
+.sidebar-panel, 
+.glass-panel,
+aside,
+.dashboard-sidebar,
+div[class*="sidebar"] {
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+  background: rgba(15, 23, 42, 0.88) !important; /* Premium Dark Glassmorphism for High Legibility */
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.map-container, 
+.map-viewport,
+.leaflet-container {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+@keyframes map-pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 0; }
+  100% { transform: scale(0.95); opacity: 0; }
+}
+
+/* ── Sentinel emergency blink (Phase C3) ─────────────────────────────── */
+@keyframes sentinel-blink {
+  50% { opacity: 0; }
+}
+
+/* ── IBM Plex Mono font fallback for .font-mono classes ─────────────── */
+.font-mono, code, pre, [class*="mono"] {
+  font-family: 'IBM Plex Mono', 'Fira Code', 'JetBrains Mono', monospace;
+}
+
+/* ── Fix 2: Pure CSS active route marching ants polyline animation ── */
+.sentinel-active-route {
+  stroke-dasharray: 18 10;
+  animation: sentinel-march 0.9s linear infinite;
+}
+
+@keyframes sentinel-march {
+  to {
+    stroke-dashoffset: -28; /* equals sum of dash (18) and gap (10) */
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE A — NEW PANEL DESIGN SYSTEM
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header scanline animation ───────────────────────────────────────────── */
+@keyframes scanline {
+  0%   { left: -60%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
+}
+
+/* ── WebSocket Status Dots ───────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+  50%       { box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+}
+.ws-live-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #10b981; animation: pulse-dot 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(16,185,129,0.6); flex-shrink: 0;
+}
+.ws-offline-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #ef4444; flex-shrink: 0;
+}
+.ws-connecting-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #f59e0b; animation: sentinel-blink 0.8s step-end infinite; flex-shrink: 0;
+}
+
+/* ── Tab accent underlines ───────────────────────────────────────────────── */
+.tab-accent-cyan   { border-bottom: 2px solid #38bdf8 !important; color: #38bdf8 !important; background: transparent !important; }
+.tab-accent-indigo { border-bottom: 2px solid #6366f1 !important; color: #c7d2fe !important; background: transparent !important; }
+.tab-accent-purple { border-bottom: 2px solid #a78bfa !important; color: #a78bfa !important; background: transparent !important; }
+.tab-accent-amber  { border-bottom: 2px solid #f59e0b !important; color: #f59e0b !important; background: transparent !important; }
+
+/* ── Tab grid container ──────────────────────────────────────────────────── */
+.tab-grid-6 {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  background: rgba(255,255,255,0.01); border: 1px solid var(--border-color);
+  border-radius: 8px; overflow: hidden;
+}
+.tab-grid-6 button {
+  border: none; border-radius: 0; background: transparent;
+  color: var(--text-secondary); font-size: 0.58rem; padding: 9px 4px;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 2px solid transparent; font-family: var(--font-mono);
+}
+.tab-grid-6 button:last-child { border-right: none; }
+.tab-grid-6 button:hover { background: rgba(255,255,255,0.03); color: #fff; }
+
+/* ── Research Mode Button ────────────────────────────────────────────────── */
+.btn-research {
+  display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+  border-radius: 5px; cursor: pointer; font-size: 0.55rem; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase; transition: all 0.25s ease;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.btn-research.off { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #475569; }
+.btn-research.on  { background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: #a855f7; box-shadow: 0 0 8px rgba(168,85,247,0.2); }
+
+/* ── KPI Cards (Situation Dashboard) ────────────────────────────────────── */
+.kpi-card { border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; position: relative; overflow: hidden; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box; }
+.kpi-card-critical { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.35); box-shadow: 0 0 12px rgba(239,68,68,0.12); }
+.kpi-card-warning  { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.35); box-shadow: 0 0 12px rgba(245,158,11,0.12); }
+.kpi-card-good     { background: rgba(16,185,129,0.08);  border: 1px solid rgba(16,185,129,0.35);  box-shadow: 0 0 12px rgba(16,185,129,0.12); }
+.kpi-card-info     { background: rgba(56,189,248,0.08);  border: 1px solid rgba(56,189,248,0.35);  box-shadow: 0 0 12px rgba(56,189,248,0.12); }
+.kpi-card-neutral  { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); }
+.kpi-label    { font-size: 0.58rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; }
+.kpi-value    { font-size: 1.3rem; font-weight: 800; font-family: 'IBM Plex Mono', monospace; line-height: 1; }
+.kpi-bar-track { height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px; overflow: hidden; }
+.kpi-bar-fill  { height: 100%; border-radius: 1px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+.kpi-subtitle  { font-size: 0.58rem; color: #475569; line-height: 1.3; }
+.kpi-grid      { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* ── Section Headers ─────────────────────────────────────────────────────── */
+.section-header {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px; display: flex; align-items: center;
+  gap: 6px; padding: 2px 0 4px; margin-bottom: 6px;
+}
+.section-header::before { content: ''; width: 3px; height: 11px; border-radius: 1px; flex-shrink: 0; }
+.section-header-cyan   { color: #38bdf8; border-bottom: 1px solid rgba(56,189,248,0.15); }
+.section-header-cyan::before   { background: #38bdf8; box-shadow: 0 0 6px rgba(56,189,248,0.5); }
+.section-header-purple { color: #a78bfa; border-bottom: 1px solid rgba(167,139,250,0.15); }
+.section-header-purple::before { background: #a78bfa; box-shadow: 0 0 6px rgba(167,139,250,0.5); }
+.section-header-amber  { color: #f59e0b; border-bottom: 1px solid rgba(245,158,11,0.15); }
+.section-header-amber::before  { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+
+/* ── XAI Tree ────────────────────────────────────────────────────────────── */
+.xai-node { display: flex; align-items: flex-start; gap: 6px; padding: 5px 7px; border-radius: 6px; transition: background 0.2s; margin-bottom: 2px; position: relative; }
+.xai-node-clickable { cursor: pointer; }
+.xai-node-clickable:hover { background: rgba(255,255,255,0.04); }
+.xai-node-root { background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); }
+.xai-tree-children { border-left: 1px solid rgba(56,189,248,0.1); margin-left: 17px; }
+.xai-empty-state { padding: 24px; text-align: center; color: #334155; font-size: 0.65rem; }
+.xai-last-decision { padding: 7px 10px; border-radius: 7px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); margin-bottom: 6px; }
+.xai-equation { font-size: 0.56rem; color: #a855f7; font-family: 'IBM Plex Mono', monospace; padding: 3px 6px; background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.15); border-radius: 4px; line-height: 1.4; margin-top: 3px; }
+
+/* ── Counterfactual Panel ────────────────────────────────────────────────── */
+.cf-scenario-card { padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); cursor: pointer; transition: all 0.2s ease; }
+.cf-result-card { padding: 8px 10px; border-radius: 7px; margin-bottom: 6px; }
+@keyframes cf-spin { to { transform: rotate(360deg); } }
+.cf-spinner { width: 10px; height: 10px; border: 2px solid rgba(245,158,11,0.3); border-top-color: #f59e0b; border-radius: 50%; animation: cf-spin 0.8s linear infinite; display: inline-block; }
+.cf-run-btn { padding: 8px 12px; border-radius: 7px; font-size: 0.62rem; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.8px; text-transform: uppercase; width: 100%; font-family: 'IBM Plex Mono', monospace; }
+.cf-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cf-run-btn.enabled { border: 1px solid rgba(245,158,11,0.4); background: rgba(245,158,11,0.12); color: #f59e0b; }
+.cf-run-btn.enabled:hover:not(:disabled) { background: rgba(245,158,11,0.22); box-shadow: 0 0 12px rgba(245,158,11,0.2); }
+.cf-run-btn.disabled-state { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); color: #475569; }
+
+/* ── Micro-animations ────────────────────────────────────────────────────── */
+.card-hover-lift { transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease; }
+.card-hover-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+
+/* ── 7-Tab grid support ──────────────────────────────────────────────────── */
+.tab-grid-7 {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  background: rgba(255,255,255,0.01); border: 1px solid var(--border-color);
+  border-radius: 8px; overflow: hidden;
+}
+.tab-grid-7 button {
+  border: none; border-radius: 0; background: transparent;
+  color: var(--text-secondary); font-size: 0.52rem; padding: 9px 2px;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 2px solid transparent; font-family: var(--font-mono);
+}
+.tab-grid-7 button:last-child { border-right: none; }
+.tab-grid-7 button:hover { background: rgba(255,255,255,0.03); color: #fff; }
