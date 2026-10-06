@@ -5,3 +5,4 @@
 - [2026-10-04 16:23] test: validate concurrent access patterns
 - [2026-10-04 08:53] chore: align code style with linter
 - [2026-10-05 14:58] fix: correct timezone handling
+- [2026-10-06 14:47] chore: configure pre-commit hooks
