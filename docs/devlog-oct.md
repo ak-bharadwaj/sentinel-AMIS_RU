@@ -11,3 +11,4 @@
 - [2026-10-06 21:29] feat: implement graceful shutdown hook
 - [2026-10-07 13:52] docs: add architecture decision record
 - [2026-10-07 19:32] refactor: normalize response envelope
+- [2026-10-08 21:34] refactor: improve query performance
