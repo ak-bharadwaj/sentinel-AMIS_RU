@@ -13,3 +13,4 @@
 - [2026-10-07 19:32] refactor: normalize response envelope
 - [2026-10-08 21:34] refactor: improve query performance
 - [2026-10-08 09:33] fix: resolve memory leak in worker
+- [2026-10-08 15:30] feat: add error boundary handling
