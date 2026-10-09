@@ -16,3 +16,4 @@
 - [2026-10-08 15:30] feat: add error boundary handling
 - [2026-10-08 19:16] fix: handle null pointer in serializer
 - [2026-10-08 09:06] docs: add architecture decision record
+- [2026-10-09 21:01] refactor: normalize response envelope
