@@ -20,3 +20,4 @@
 - [2026-10-10 12:45] docs: update onboarding guide
 - [2026-10-10 10:42] chore: archive completed milestones
 - [2026-10-10 21:14] test: add coverage for boundary conditions
+- [2026-10-11 20:58] docs: document retry mechanism
