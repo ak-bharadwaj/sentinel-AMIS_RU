@@ -22,3 +22,4 @@
 - [2026-10-10 21:14] test: add coverage for boundary conditions
 - [2026-10-11 20:58] docs: document retry mechanism
 - [2026-10-12 20:18] fix: sanitize user input in forms
+- [2026-10-12 18:17] feat: add health check endpoint
