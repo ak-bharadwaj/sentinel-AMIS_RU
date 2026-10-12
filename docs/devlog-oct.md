@@ -21,3 +21,4 @@
 - [2026-10-10 10:42] chore: archive completed milestones
 - [2026-10-10 21:14] test: add coverage for boundary conditions
 - [2026-10-11 20:58] docs: document retry mechanism
+- [2026-10-12 20:18] fix: sanitize user input in forms
