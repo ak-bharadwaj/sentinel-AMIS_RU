@@ -14,3 +14,6 @@ Development notes and progress tracking.
 
 ### 2026-10-10
 - docs: added performance profiling notes
+
+### 2026-10-12
+- chore: updated .gitignore and project config
