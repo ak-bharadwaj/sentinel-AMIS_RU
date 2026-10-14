@@ -24,3 +24,4 @@
 - [2026-10-12 20:18] fix: sanitize user input in forms
 - [2026-10-12 18:17] feat: add health check endpoint
 - [2026-10-14 08:49] docs: update onboarding guide
+- [2026-10-14 20:57] chore: archive completed milestones
