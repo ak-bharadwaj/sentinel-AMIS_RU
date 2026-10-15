@@ -17,3 +17,6 @@ Development notes and progress tracking.
 
 ### 2026-10-12
 - chore: updated .gitignore and project config
+
+### 2026-10-15
+- docs: recorded integration testing observations
