@@ -28,3 +28,4 @@
 - [2026-10-14 09:35] test: add coverage for boundary conditions
 - [2026-10-14 16:57] chore: update dependency constraints
 - [2026-10-14 10:35] refactor: consolidate error types
+- [2026-10-15 11:50] docs: update deployment runbook
