@@ -30,3 +30,4 @@
 - [2026-10-14 10:35] refactor: consolidate error types
 - [2026-10-15 11:50] docs: update deployment runbook
 - [2026-10-15 13:08] chore: prune stale branches references
+- [2026-10-16 17:56] docs: update onboarding guide
