@@ -20,3 +20,6 @@ Development notes and progress tracking.
 
 ### 2026-10-15
 - docs: recorded integration testing observations
+
+### 2026-10-17
+- refactor: normalized error response formats
