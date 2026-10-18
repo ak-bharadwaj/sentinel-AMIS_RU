@@ -34,3 +34,4 @@
 - [2026-10-16 21:37] chore: archive completed milestones
 - [2026-10-16 20:10] test: add coverage for boundary conditions
 - [2026-10-17 17:26] feat: implement graceful shutdown hook
+- [2026-10-18 09:59] docs: update deployment runbook
