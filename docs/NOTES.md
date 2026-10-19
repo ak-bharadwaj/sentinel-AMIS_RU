@@ -23,3 +23,6 @@ Development notes and progress tracking.
 
 ### 2026-10-17
 - refactor: normalized error response formats
+
+### 2026-10-19
+- docs: updated module interaction diagrams
