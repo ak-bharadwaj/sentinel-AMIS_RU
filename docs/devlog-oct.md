@@ -42,3 +42,4 @@
 - [2026-10-18 15:06] fix: sanitize user input in forms
 - [2026-10-19 09:45] docs: update deployment runbook
 - [2026-10-20 10:41] docs: document schema migration steps
+- [2026-10-20 08:36] refactor: decouple service dependencies
