@@ -26,3 +26,6 @@ Development notes and progress tracking.
 
 ### 2026-10-19
 - docs: updated module interaction diagrams
+
+### 2026-10-21
+- chore: removed deprecated configuration entries
