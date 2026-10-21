@@ -46,3 +46,4 @@
 - [2026-10-20 17:01] docs: update technical specification
 - [2026-10-20 09:56] chore: normalize import ordering
 - [2026-10-21 20:56] test: validate concurrent access patterns
+- [2026-10-21 11:07] chore: align code style with linter
