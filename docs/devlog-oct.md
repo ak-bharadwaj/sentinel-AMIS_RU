@@ -48,3 +48,4 @@
 - [2026-10-21 20:56] test: validate concurrent access patterns
 - [2026-10-21 11:07] chore: align code style with linter
 - [2026-10-22 15:53] docs: document schema migration steps
+- [2026-10-22 18:13] refactor: decouple service dependencies
