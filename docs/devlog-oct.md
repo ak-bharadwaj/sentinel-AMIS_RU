@@ -55,3 +55,4 @@
 - [2026-10-23 17:07] chore: align code style with linter
 - [2026-10-24 14:22] docs: document schema migration steps
 - [2026-10-24 21:35] refactor: decouple service dependencies
+- [2026-10-24 10:09] docs: update technical specification
