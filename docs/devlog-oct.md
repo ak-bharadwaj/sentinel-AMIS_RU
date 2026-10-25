@@ -57,3 +57,4 @@
 - [2026-10-24 21:35] refactor: decouple service dependencies
 - [2026-10-24 10:09] docs: update technical specification
 - [2026-10-25 17:59] test: add coverage for boundary conditions
+- [2026-10-25 15:29] chore: update dependency constraints
