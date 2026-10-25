@@ -32,3 +32,6 @@ Development notes and progress tracking.
 
 ### 2026-10-23
 - docs: added security review notes
+
+### 2026-10-25
+- refactor: streamlined initialization sequence
