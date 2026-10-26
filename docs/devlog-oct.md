@@ -63,3 +63,4 @@
 - [2026-10-25 12:55] feat: add structured logging
 - [2026-10-25 12:16] fix: resolve edge case in validation layer
 - [2026-10-25 10:14] docs: clarify configuration parameters
+- [2026-10-26 11:03] fix: handle null pointer in serializer
