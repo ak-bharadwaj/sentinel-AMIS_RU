@@ -66,3 +66,4 @@
 - [2026-10-26 11:03] fix: handle null pointer in serializer
 - [2026-10-26 20:31] docs: add architecture decision record
 - [2026-10-27 17:31] fix: prevent race condition in cache
+- [2026-10-27 21:42] docs: document schema migration steps
