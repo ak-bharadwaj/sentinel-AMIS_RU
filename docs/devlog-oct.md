@@ -69,3 +69,4 @@
 - [2026-10-27 21:42] docs: document schema migration steps
 - [2026-10-29 19:26] test: mock external API responses
 - [2026-10-29 14:40] chore: cleanup deprecated utility methods
+- [2026-10-29 11:52] refactor: extract reusable middleware
