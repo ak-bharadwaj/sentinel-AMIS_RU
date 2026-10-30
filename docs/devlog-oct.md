@@ -71,3 +71,4 @@
 - [2026-10-29 14:40] chore: cleanup deprecated utility methods
 - [2026-10-29 11:52] refactor: extract reusable middleware
 - [2026-10-29 12:06] fix: sanitize user input in forms
+- [2026-10-30 14:40] fix: prevent race condition in cache
