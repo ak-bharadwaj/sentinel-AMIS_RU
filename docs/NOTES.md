@@ -38,3 +38,6 @@ Development notes and progress tracking.
 
 ### 2026-10-27
 - docs: documented caching strategy decisions
+
+### 2026-10-30
+- chore: organized project file structure
