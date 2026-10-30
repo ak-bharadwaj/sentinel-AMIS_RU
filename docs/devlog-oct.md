@@ -73,3 +73,4 @@
 - [2026-10-29 12:06] fix: sanitize user input in forms
 - [2026-10-30 14:40] fix: prevent race condition in cache
 - [2026-10-30 14:59] docs: document schema migration steps
+- [2026-10-30 08:00] refactor: decouple service dependencies
